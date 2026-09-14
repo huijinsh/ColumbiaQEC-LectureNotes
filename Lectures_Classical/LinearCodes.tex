@@ -14,9 +14,11 @@
 %#############################################################
 %#############################################################
 \section{Introduction}
-The fundamental problem of channel coding is to encode a stream of message bits into a stream of coded symbols by adding structured redundancy at the transmitter, so that the receiver can use the structure to detect and correct errors. In its simplest form, there is no feedback from the receiver to the transmitter. This form of channel coding is known as forward error correcting codes. 
+The fundamental problem of channel coding is to encode a stream of message bits into a stream of coded symbols by adding structured redundancy at the transmitter, so that the receiver can use that structure to detect and correct errors. In its simplest form, there is no feedback from the receiver back to the transmitter; this form of channel coding is known as forward error correction.
 
-Forward error correcting codes is the most important technique in fighting against noise present in the communication channel to achieve reliable communication. In general, the coded symbols can be binary or q-ary. In the early days of coding theory development, especially in algebraic coding, q-ary symbols allows important coding schemes such as Reed Solomon codes. However, in modern coding methods, for codes defined on sparse graphs like Low Density Parity Check codes or turbo-like codes, we use binary error correcting codes. This is does not limit the use of high order modulation: we simply group several coded bits together and map these bits into modulation symbols if necessary before transmission. q-ary symbols become less important. Therefore, in this class we discuss solely binary channel coding and all our operation are over the binary field \(GF(2) = \{0, 1\}\). In  particular, sum is done over modular \(2\), or as XOR operation. 
+Forward error correction is the most important technique for fighting the noise present in a communication channel in order to achieve reliable communication. In general, the coded symbols can be binary (taking one of two values) or $q$-ary (taking one of $q$ values, for some integer $q > 2$). In the early days of coding theory, especially in algebraic coding, $q$-ary symbols enabled important coding schemes such as Reed-Solomon codes. However, modern coding methods -- codes defined on sparse graphs, like Low Density Parity Check (LDPC) codes or turbo-like codes -- are usually binary. This does not limit the use of high-order modulation formats in practice: we simply group several coded bits together and map each group onto a modulation symbol before transmission. As a result, $q$-ary symbols have become less central to the theory. In this class we therefore discuss only binary channel coding.
+
+Binary channel coding takes place over the binary field \(GF(2) = \{0, 1\}\): a set of two elements with addition and multiplication defined so that all the usual algebraic rules (associativity, distributivity, etc.) still hold. The only surprising rule is how addition works: \(1 + 1 = 0\). Concretely, this means addition in \(GF(2)\) is the same as the XOR (exclusive-or) operation on bits, and every ``sum'' in this chapter should be read as addition modulo \(2\).
 
 In this chapter, we first discuss various  noisy channel models and two simple coding schemes, the repetition code and the \((7,4)\) Hamming code. Using these two examples, we show the basic concepts such as encoding, decoding. Then we venture into a general framework of block linear codes, the generator matrix for encoding, the parity check matrix for syndrome calculation, and syndrome decoding. 
 
@@ -29,20 +31,20 @@ Therefore we assume the channel has input \(\{0, 1\}\), and output alphabet \(\S
 \begin{example}
     Binary Symmetric Channel (BSC): the output alphabet \(\Sigma_Y\) is \(\{0, 1\}\) and the transition probabilities are:
 \begin{align*}
-    p(y=-0|x=0) &= p(y=1|x=1) = 1- p \\
+    p(y=0|x=0) &= p(y=1|x=1) = 1- p \\
     p(y=1|x=0) &= p(y=0|x=1) = p
 \end{align*}
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.5\textwidth]{Figs/BSC_channel.png}
-    \caption{Binary Erasure channel. A bit has probability \(p\) erased; otherwise, it is received correctly. BEC is a good model for internet traffic.}
+    \caption{Binary Symmetric Channel. Each transmitted bit is flipped with probability \(p\) and received correctly with probability \(1-p\), independently of the other bits. BSC is a good model for channels dominated by random thermal noise.}
     \label{fig:bsc_channel}
 \end{figure}
 
 \end{example}
 
 \begin{example}
-    Binary Erasure Channel (BIC): the output alphabet \(\Sigma_Y\)  is \(\{0, \star, 1\}\), where \(\star\) represents an erasure. The transition probability are:
+    Binary Erasure Channel (BEC): the output alphabet \(\Sigma_Y\)  is \(\{0, \star, 1\}\), where \(\star\) represents an erasure. The transition probability are:
 \begin{align*}
 p(y=0|0) &= p(1|1) = 1 -p \\
 p(\star|0) &= p(\star|1) = p
@@ -58,12 +60,12 @@ p(\star|0) &= p(\star|1) = p
 \end{example}
 
 \begin{example}
-    Additive White Gaussian Noise Channel (AWGN): the transmitted symbols are \(+1,\) or \(-1\). The output value is a Gaussian random variable centered around the transmitted symbol with standard deviation \(sigma\):
+    Additive White Gaussian Noise Channel (AWGN): here we map bit \(0\) to the transmitted symbol \(+1\) and bit \(1\) to \(-1\) (any fixed mapping between bits and symbols will do). The output value is a Gaussian random variable centered around the transmitted symbol with standard deviation \(\sigma\):
  \begin{align*}
 p(y|0) &= \frac{1}{ \sqrt{2\pi\sigma^2}}\; \exp(-(y-1)^2/2\sigma^2) \\
 p(y|1) &= \frac{1}{ \sqrt{2\pi\sigma^2}}\; \exp(-(y+1)^2/2\sigma^2) \\
 \end{align*}   
-Figure~\ref{fig:awgn_channel} depicts the probability distribution given \(sigma=1\). 
+Figure~\ref{fig:awgn_channel} depicts the probability distribution given \(\sigma=1\). 
 
 \begin{figure}[h]
     \centering
@@ -72,20 +74,21 @@ Figure~\ref{fig:awgn_channel} depicts the probability distribution given \(sigma
     \label{fig:awgn_channel}
 \end{figure}
 
-Let us consider what is the error probability if we make a hard decision on the transmitted symbol given the received symbol. Since it is symmetric, we can assume the transmitted symbol is \(-1\), the probability \(y\) is more closer to \(+1\) than \(-1\) is 
-\begin{align*}
-    P(-1 \rightarrow +1) &= \frac{1}{ \sqrt{2\pi\sigma^2}}\; \int_{0}^{\inf} \exp(-(y-1)^2/2\sigma^2) \\
-          &= \frac{1}{ \sqrt{2\pi\sigma^2}}\; \int_{1}^{\inf} \exp(-y^2/2\sigma^2) \\
-          &= Q(\frac{1}{\sigma})
-\end{align*}
+The AWGN channel has a continuous output, but a receiver can always fall back to a simple strategy: guess whichever symbol, \(+1\) or \(-1\), is closer to the received value \(y\). This is called making a \emph{hard decision}, and it effectively converts the AWGN channel into a BSC, so it is worth computing the resulting crossover probability \(p\).
 
-which is the tail part of the Gaussian distribution. This transform the AWGN channel to a Binary Symmetric CHannel.
+By symmetry we may assume the transmitted symbol is \(-1\) and ask for the probability that \(y\) lands closer to \(+1\) than to \(-1\), i.e., that \(y > 0\):
+\begin{align*}
+    P(-1 \rightarrow +1) &= \frac{1}{ \sqrt{2\pi\sigma^2}}\; \int_{0}^{\infty} \exp(-(y+1)^2/2\sigma^2)\, dy \\
+          &= \frac{1}{ \sqrt{2\pi\sigma^2}}\; \int_{1}^{\infty} \exp(-y^2/2\sigma^2)\, dy \\
+          &= Q\left(\frac{1}{\sigma}\right)
+\end{align*}
+where \(Q(\cdot)\) is the standard Gaussian tail probability, i.e., \(Q(x) = P(Z > x)\) for a standard normal random variable \(Z\). This crossover probability \(p = Q(1/\sigma)\) is exactly the BSC parameter that results from hard-decision decoding of the AWGN channel.
 \end{example}
 
 
 
 \section{Repetition Codes} The simplest coding scheme is a repetition code. 
-At the transmitter side, in order to combat noise, we repeats every message bit \(q\) times. Take the example \(q=3\), that means each message bit three times is repeated three times. That means, we transmit \(000\) if the message bit is \(0\); and transmit \(111\) if the message bit is \(1\). The \(000\) and \(111\) are called the code bits. This process of turning \(1\) message bit to \(3\) coded bits is called the encoding process. For a stream of message bits \(10010\), the encoded bit stream will be \(111000000111000\), as illustrated in Figure~\ref{fig:Repeat3}.
+At the transmitter side, in order to combat noise, we repeat every message bit \(q\) times. Take the example \(q=3\): each message bit is repeated three times. That means we transmit \(000\) if the message bit is \(0\), and transmit \(111\) if the message bit is \(1\). The bits \(000\) and \(111\) are called the code bits. This process of turning \(1\) message bit into \(3\) coded bits is called the encoding process. For a stream of message bits \(10010\), the encoded bit stream will be \(111000000111000\), as illustrated in Figure~\ref{fig:Repeat3}.
 
 \begin{figure}[h]
     \centering    \includegraphics[width=1\textwidth]{Figs/Repeatx3Code.pdf}
@@ -213,8 +216,8 @@ More formally, the Hamming weight of a string
 \end{definition} 
 
 
-Remark 3.3. It is obvious that 
-\(wt(x-y) = \Delta (x, y)\)
+\textbf{Remark.} Note that Hamming weight and Hamming distance are directly related: 
+\[wt(x-y) = \Delta (x, y).\]
 
 
 \begin{definition}
@@ -242,7 +245,7 @@ We sometimes like to normalize the distance of a code to its block length, as we
 \[\delta(C) = \frac{d(C)}{n}. \]
 
 \begin{example}
-\textbf{Repetition Code}. For \(q\) reptition code, the code rate is \(1/q\). Distance is \(q\). 
+\textbf{Repetition Code}. For a length-\(q\) repetition code, the code rate is \(1/q\) and the minimum distance is \(q\). 
 \end{example}
 
 \begin{example}
@@ -259,8 +262,6 @@ The \((7,4)\) Hamming code discussed earlier is an example of distance \(3\) cod
 
 \paragraph{Correctable Error}
 We call a binary error event \(e\) correctable if for any codeword \(c\), the corrupted received vector \(c + e\) is closer to another codeword \(c\) than another other codeword. If the code \(C\) has \(d(C)=d\), then any binary error event with weight less than \(\lfloor d/2\rfloor\) is correctable.
-
-\paragraph{Class Break\\}
 
 We can formalize the above discussion into the following theorem. 
 \begin{theorem}
@@ -362,8 +363,8 @@ We know \(S_t(c_1)\) and \(S_t(c_2)\) cannot be overlapping for every pair of co
 
 However, there are only \(2^n\) possible vectors in the whole Hamming space, therefore the number of codewords is upper bounded by:
 \begin{align*}
-    |C| vol(n, t) &\leq 2^n \\
-    log_2 |C| + log_2 vol(n, t) &\leq n \\
+    |C| \cdot Vol(n, t) &\leq 2^n \\
+    \log_2 |C| + \log_2 Vol(n, t) &\leq n \\
     R &\leq 1 - H(t/n) 
 \end{align*}
 This is also called the sphere packing bound due to the argument above. Note that in the limit, \(t/n = \frac{d}{2n} = \delta/2\), we have
@@ -458,7 +459,7 @@ As we have seen a linear code \([n, k, d]\) forms a subspace and the generator m
 
 
 \subsection{Parity Check Matrix}
-Another way of defining the subspace \(C\) in \(GF(2)^n\) is to use its null space. The nullspace of \(C\) is defined as all vectors which are orthogonal to every vector in \(C\). This is equivalent to all vectors which are orthogonal to every columnn vector in the generator matrix \(G\).
+Another way of defining the subspace \(C\) in \(GF(2)^n\) is to use its null space. The nullspace of \(C\) is defined as all vectors which are orthogonal to every vector in \(C\). This is equivalent to all vectors which are orthogonal to every column vector in the generator matrix \(G\).
 
 Consider the linear equation system \(xG=0\), the solution space of \(x\) has dimension \(n-k\) from basic linear algebra. This is the null space. We denote the null-space as the subspace \(C^{\perp}\). We can call a matrix consisting a basis of supporting vector of this subspace as a generator matrix for \(C^{\perp}\).
 
@@ -528,13 +529,17 @@ Then one parity check matrix H is:
 
 
 \begin{proof}
-%{We see that \(HG = P + P = 0\), so indeed \(H\) defines the null space of \(G\), which means \(H\) is the parity check matrix.}
+We check directly that \(H\) annihilates every column of \(G\) (all arithmetic below is over \(GF(2)\)):
+\[
+HG = [P \; I_{n-k}] \begin{bmatrix} I_k \\ P \end{bmatrix} = P I_k + I_{n-k} P = P + P = 0.
+\]
+So every codeword \(c = Gx\) satisfies \(Hc = HGx = 0\), meaning \(H\) defines the null space of \(G\); that is, \(H\) is a valid parity check matrix for the code generated by \(G\).
 \end{proof}
 
 \section{Dual Code}
 We can define a dual code of \(C\), denoted by \(C^{\perp}\) by swapping the role of generator matrix \(G\) and parity check matrix \(H\). That is, we define a code with generator matrix \(G_{dual} = H^T\), where \(H^T\) is the transpose of \(H\). \(H^T\) has dimension \(n \times (n-k)\), therefore the encoding \(x = G_{dual} m\) encodes a \((n-k)\)-bit vector to \(n\)-bit codeword. There are \(2^{n-k}\) codewords. The parity check matrix of the dual code \(H_{dual}\) is \(G^T\). 
 
-The following lemma - Identity for linear codes and their duals - will be used later in deriving the decoding capability of CSS codes. 
+Intuitively, this lemma says that if you sum a sign \((-1)^{y\cdot z}\) over every codeword \(y\) in \(C\), the terms either all reinforce each other and add up to the size of the code (when \(z\) belongs to the dual code), or they cancel out perfectly and sum to zero (otherwise). This identity -- relating a linear code and its dual -- will be used later in deriving the decoding capability of CSS codes. 
 
 \begin{lemma}
     Consider a \((n,k)\) linear code \(C\), for a \(n\)-bit vector \(z\), we have  
@@ -564,8 +569,9 @@ In other words, the group H in some sense has a similar algebraic structure as G
 \end{proof}
 
 \subsection{Dual codes of some codes}
-Dual codes of repetition codes. 
-Dual codes of Hamming codes. 
+\textbf{Dual of the repetition code.} As Exercise 2 below asks you to verify, the dual of the length-\(q\) repetition code is the single parity check code of the same length: its parity check matrix is exactly the \(1\times q\) all-ones generator matrix of the repetition code, and its generator matrix is exactly the repetition code's parity check matrix.
+
+\textbf{Dual of the Hamming code.} The dual of the \((7,4)\) Hamming code is the \([7,3]\) \emph{simplex code}: every nonzero codeword has Hamming weight exactly \(4\), and any two distinct nonzero codewords are at distance \(4\) from each other. (You are encouraged to verify this using the generator and parity check matrices given earlier in this chapter.)
 
 \section{Exercise}
 \begin{enumerate}
