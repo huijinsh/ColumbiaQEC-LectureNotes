@@ -1,0 +1,206 @@
+
+\Lecturer{Hui Jin}
+\Contributor{}
+\LectureNumber{03}
+\LectureDate{DATE}
+\LectureTitle{Decoding Linear Block Codes}
+
+\lstset{style=mystyle}
+
+	\MakeScribeTop
+
+%#############################################################
+%#############################################################
+%#############################################################
+%#############################################################
+\section{Introduction}
+In this chapter, we continue the discussion on linear codes. Linear codes can be defined by the generator matrix, with which the encoding problem seems straightforward. After all, encoding is simply \(Gx\), a matrix vector multiplication. In the worst case, the encoding complexity is quadratic in block length, proportional to the number of ones in the matrix \(G\). The decoding problem, on the other hand, is a completely different beast. 
+
+
+Decoding error probability is the most important metric, but decoding complexity is also important. Here we introduce some of the heuristic classical decoding algorithms for the block linear codes. We shall see that while optimal decoding method is easy to understand, its complexity is prohibitively large. In fact, the decoding complexity can be exponential in block length in general and thus impractical. In fact, most coding research before 1990s is about finding a good code with practical decoding method. 
+
+\section{Decoding Algorithms}
+The decoder's task is to determine the transmitted codeword given the received noisy version of the codeword, by using the structured redundancy introduced by the encoder. Since the channel noise is probabilistic, decoding is probability in nature as well. That is, we can only assert a code will be decoded successfully with certain probability, but never can we assert the decoding is guaranteed to succeed. We say a family of codes is "good" in the sense that the decoding error probability can be made arbitrarily small as the block length becomes large.   
+
+\subsection{Memoryless Channel}
+The channel statistics is defined by the transition probability from the transmitted symbol \(c_i\) to the received symbol \(y_i\) 
+\[p(y_i|c_i). \] 
+
+
+Let us assume the received vector is \(\y\), the transmitted codeword is \(\c\). 
+
+ Throughout our class, we assume the channel is memoryless, that is the transition probability of sequential symbols are independent of each other, i.e. there is no inter-symbol dependence. This is true for many channel types, and sometimes achieved through the use of symbol permutations. 
+ 
+ When the channel is memoryless, the probability of receiving the vector \(y\) given codeword \(c\) is transmitted can be factored into:
+\[p(y|c) = \Pi_{i} p(y_i|c_i).\]
+
+ 
+The decoder decides a codeword given the noisy received vector \(y\). We are interested in an optimal solution. There can be multiple criteria for this optimality.
+
+\subsection{Maximum Likelihood Decoder}
+The most commonly used decoder is maximum likelihood decoder. 
+The maximum likelihood decoder chooses the codeword \(c_{ML}\) such that \(p(y|c)\) is maximized. Or
+\[c_{ML} = \argmax_c \: p(y|c) \]
+
+
+\subsection{Maximum A Posteriori Decoder} The maximum A posteriori (MAP) Decoder chooses the codeword c such that p(c|y) is maximized. 
+\[c_{MAP} = \argmax_c \: p(c|y) = \argmax_c p(y|c)p(c) \propto \argmax_{c} \; p(y|c)p(c).\]
+
+Now since usually the probability of transmitting any codeword is uniformly distributed, the MAP decoder is equivalent to the ML decoder. But there is an important distinction. In terms of any single bit, we can get the MAP decision of the single bit, aggregated over all possible codewords. And it turns out this is one of the important techniques in modern coding theory, when iterative decoding is applied.
+
+\subsection{Bit Error Probability vs block error probability}
+ If we want to minimize the block error rate, we must chose the most likely codeword,
+
+ \begin{equation*}
+x^{B} ( y ) = \argmax_{x} P \{ X = x
+|Y =y\}.    
+ \end{equation*}
+To minimize the bit error rate we must instead return the sequence of most likely bits,
+\begin{equation*}
+x_{i}^{b} ( y ) = \argmax_{x_i} P \{ X_i = x_i
+|Y=y\}.    
+\end{equation*}
+The reason of these prescriptions is the object of the next exercise.
+
+
+Exercise 1: Let \((U, V )\) be a pair of discrete random variables. Think of \(U\) as a ‘hidden’ variable and imagine you observe \(V = v\). We want to understand what is the optimal estimate for U given \(V = v\). Show that the function \(v \rightarrow \hat{u}(v)\) that minimizes the error probability \(P(\hat{u}) = P \{U \neq \hat{u}(V )\}\) is given by
+\begin{align*}
+    \hat{u}(v) = \argmax_u P\{U=u|V=v\}.
+\end{align*}
+
+\subsection{Minimum distance decoding}
+Given a received vector \(r\), the minimum distance decoding finds the codeword \(c\) such that the Hamming distance \(d(r, c)\) is minimized. It can be done by brute force by going through the set of codewords. Clearly the complexity of this naive decoding is \(2^k\).
+
+In normal channel noise model, as in binary symmetric channel, binary erasure channel, or AWGN channel, a smaller Hamming distance directly translates to higher probability. Therefore, the minimum distance decoding is identical to the maximum likelihood decoding.
+
+\subsection{Syndrome Decoding}
+Assume the received vector is \(r = c + e\), a codeword distorted by a binary error vector \(e\). We compute the syndrome \(Hr = H(e+c) = He + Hc = He\). Thus, the syndrome only depends on the error vector and is independent of the codeword.
+We can also show that if and only if two error vectors differ by a codeword, they have the same syndrome.
+
+These two facts means that the sets \(e + C\) are partitions of the whole possible received vectors. For each syndrome, we can associate the error vector with the smallest weight. Thus we can make this association a look up table to facilitate decoding.
+
+syndrome table. The syndrome table is an array of pairs: (syndrome, error event). There are in total \(2^{n-k}\)pairs, and the total size is \(2^{n-k}(2n-k)\) bits.
+Decoder works as the following: the receiver computes the syndrome s from the received vector r, find the corresponding error vector e, and the decoded message is r+e. This is guaranteed to be the minimum distance decoding.
+The decoding complexity is modest as we need only to look up the syndrome, which can be done by a memory index. However the memory grows exponentially with n and it is prohibitively large for reasonably large n.
+
+\begin{example}
+We will look at the syndrome decoding for the repetition-\(3\) code.
+
+Syndrome table lists the pair of syndrome and the most likely error vectors. For the repetition code, there are \(4\) such pairs and the following is the syndrome table. 
+
+\begin{center}
+\begin{tabular}{ c c  }
+00 & 000 \\ 
+01 & 001 \\
+10 & 010 \\
+11 & 100 \\
+\end{tabular}
+\end{center}
+
+\end{example}
+
+\section{Maximum Likelihood Decoding Error Bound}
+In terms of decoding error analysis, which codeword is being transmitted is immaterial. Therefore, we can fix the all zero codeword to be the transmitted codeword.
+
+\subsection{Weight Enumerators}
+We define \(A_w\) to be the number of codewords with Hamming weight \(w\) in the block code \(C\). As a function of \(w\), \(A_w\) is also known as the weight numerators of block code \(C\).
+
+\subsection{Block Error}
+Given the weight numerator \(A_w\),  we can bound the decoding error probability by the union bound. 
+
+The following theorem shows that \(A_w\) can be used to bound the error probability in an intereting situation, wheren the code is being used on a discrete memoryless channel with a maximum likelihood decoding rule. [Note. Syndrome decoding is maximum likelihood.] 
+
+\begin{theorem}
+    Let \(C\) be a binary linear code which is to be used on a DMC with input binary \(\{0, 1\}\) and output alphabet \(\Omega\), a maximum likelihood decoding rules is being used. Then the resulting error probability is bounded by 
+    \begin{align*}
+        P_E \leq \sum_{w=1}^{n} A_w \gamma ^w, 
+    \end{align*}
+
+    where 
+    \begin{align}
+        \gamma = \sum_{y\in \Omega} \sqrt{p(y|0)p(y|1)}.
+    \end{align}
+\end{theorem}
+
+The parameter \(\gamma\) is a channel specific constant, known as the Bhattacharya parameter. For the binary erasure channel, 
+\begin{align*}
+    \gamma_{BEC} = p.
+\end{align*}
+
+For the binary symmetric channel, 
+\begin{align*}
+    \gamma_{BSC} = 2 \sqrt{p(1-p)}.
+\end{align*}
+
+For the additive Gaussian channel, with 
+\begin{align*}
+    p(y|0) &= \frac{1}{\sqrt{2\pi \sigma^2}} e^{-\frac{(y-1)^2}{2\sigma^2}}, \\
+    p(y|1) &= \frac{1}{\sqrt{2\pi \sigma^2}} e^{-\frac{(y+1)^2}{2\sigma^2}}
+\end{align*}
+then, 
+\begin{align*}
+    \gamma_{AWGN} = e^{\frac{-1}{2\sigma^2}}.
+\end{align*}
+
+\begin{proof}
+    Let \(C=\{\x_0, \x_1, \cdots, \x_{M-1}\}\), with \(\x_0\) being the all zero codeword. If \(y\) is received, an ML decoder will output a codeword \(\x_i\) for which \(p(\y|\x_i\) is the largest. Because of the code is linear, we can suppose \(\x_0\) is transmitted. The decoder will definitely not output \(\x_i\) if \(p(\y|\x_0) > p(\y|\x_i)\). So if we define \(Y_i = \{\y: p(\y|\x_i) \geq p(\y|\x_0)\}\), it follows that 
+    
+    \begin{align}
+        P_E \leq \sum_{i=1}^{M-1} E_i,
+        \label{eq:PEUnion}
+    \end{align}
+
+    where 
+    \begin{align*}
+        E_i = \sum_{\y \in Y_i} p(\y|\x_0).   
+    \end{align*}
+
+    Since \(p(\y|\x_i) \geq p(\y|\x_0)\) for \(\y \in Y_i\), 
+    we have
+    \begin{align}
+        E_i &= \sum_{\y \in Y_i} \sqrt{p(\y|\x_0)p(\y|\x_i)} \nonumber \\
+        &= \sum_{y \in \Omega^n} \sqrt{p(\y|\x_0)p(\y|\x_i)}
+        \label{eq:PEsum}
+    \end{align}
+    where in the second inequality we simply increase the range in the sum. 
+
+    Now we use the fact that 
+    \begin{align*}
+        p(\y|\x) = \prod_{k=1}^n p(y_k|x_k)
+    \end{align*}, 
+    we have by interchanging the order of product and summation in eq.\ref{eq:PEsum}, 
+    \begin{align}
+        E_i \leq \prod_{k=1}^n \sum_{y \in \Omega} \sqrt{p(y|x_{0k})p(y|x_{ik})} \label{eq:PEsumII}
+    \end{align}
+
+    The inner sum in eq.\ref{eq:PEsumII} is clearly \(1\) if \(x_{0k} = x_{ik}\) and \(\gamma\) if \(x_{0k} \neq x_{ik}\). Hence, eq.\ref{eq:PEsumII} reduces to 
+    \begin{align}
+        E_i \leq \gamma^{d_{H}(\x_0, \x_i)},
+        \label{eq:PEUnionTerm}
+    \end{align}
+    where \(d_{H}(\x_0, \x_i)\) denotes the Hamming distance. Combining eq.\ref{eq:PEUnion} and eq.\ref{eq:PEUnionTerm}, we have
+    \begin{align*}
+    P_E \leq \sum_{w=1}^n A_w \gamma^{w},
+    \end{align*}
+    where \(A_w\) is the number of codewords with Hamming distance \(w\) from the all zero codewords, which is number of words of Hamming weight \(w\). 
+\end{proof}
+
+
+As we see, the error is denominated by the smallest \(w\), the minimum distance. 
+
+\section{Complexity of Encoder and Decoder}
+Error correcting codes are used in practice to protect messages against noise, so both encoder and decoder complexity are of paramount importance. We have to pay attention to both the algorithmic complexity and implementation complexity. The algorithmic complexity is about the number of operations as a function of the code block length \(n\); the implementation complexity is the hardware complexity, including memory, required to implement the encoder and/or the decoder. 
+
+A competitive coding scheme requires simple encoding and decoding complexity. An exponential algorithmic complexity, like the syndrome decoding, is prohibitive. And a linear encoding complexity is much better than a quadratic encoding complexity.  
+
+
+For example, computing the Hamming distance  \(d(x,y)\) of two \(n\) bit stream \(x, y\),  takes \(n\) operations.
+
+For another example, given a random generator matrix \(G\), there are on average \(n^2/2\) non-zero entries, so the encoding \(Gx\) takes about \(O(n^2)\) operations. 
+
+A maximum likelihood decoder by brute force search goes over the whole set of codewords  and finds the codeword that gives the maximum probability \(p(y|c)\). This decoding algorithm requires exponential search complexity. 
+
+
+We will assume that an algorithm of complexity polynomial, is somewhat acceptable, an algorithm of exponent
+complexity is “too difficult”.
+

@@ -1,0 +1,111 @@
+\Lecturer{Hui Jin}
+\Contributor{}
+\LectureNumber{16}
+\LectureDate{DATE}
+\LectureTitle{Stabilizer Codes and Quantum LDPC Codes}
+
+\lstset{style=mystyle}
+
+
+	\MakeScribeTop
+
+%#############################################################
+%#############################################################
+%#############################################################
+%#############################################################
+\section{Revisiting the Shor's code}
+[Credit: This chapter refers a lot from Steane's "A Tutorial on Quantum Error Correction"]
+
+Let us look more closely at the procedure we used to correct errors for the Shor's nine-qubit code. Let us assume the logical qubits are \(\ket{0}_S\) and \(\ket{1}_S\) and the original qubit is encoded as \(\ket{\psi} = \alpha \ket{0}_S + \beta \ket{1}_S\). We assume \(E\ket{\psi}\) is the noisy version before decoding. 
+
+To detect a bit flip error on one of the first three qubits, we compared the first two qubits and the first and third qubits. This is equivalent to measuring the eigenvalues of \(Z_1Z_2\) and \(Z_1Z_3\).
+
+If the first two qubits are the same, the eigenvalue of \(Z_1Z_2\) is \(+1\); if they are different, the eigenvalue is \(-1\). Similarly, to detect a phase error, we compare the signs of the first and second blocks of three and the first and third blocks of three. This is equivalent to measuring the eigenvalues of \(X_1X_2X_3X_4X_5X_6\) and \(X_1X_2X_3X_7X_8X_9\). Again, if the signs agree, the eigenvalues will be \(+1\); if they disagree, the eigenvalues will be \(-1\). In order to totally correct the code, we must measure the eigenvalues of a total of eight operators, which are \(\{M_1 = Z_1Z_2, M_2 = Z_1Z_3, M_3 = Z_4Z_5, M_4 = Z_4Z_6, M_5 = Z_7Z_8, M_6 = Z_7Z_9, M_7 = X_1X_2X_3X_4X_5X_6, M_8 = X_1X_2X_3X_7X_8X_9\}\). 
+
+Codewords are  eigenvectors of all eight of these operators with eigenvalue \(+1\). Since we start with the vector space of dimension \(2^9\), and there are eight operators, each dividing the space by half, the codespace has dimension of \(2^1\), there are two valid codewords \(\ket{0}_S\) and \(\ket{0}_S\). 
+
+All the operators that fix both \(\ket{0}_S\) and \(\ket{0}_S\) can be written as the product of these eight operators. The set of operators that fix \(\ket{0}_S\) and \(\ket{0}_S\) form a group \(S\), called the stabilizer of the code, and the above eight operators are the generators of this group.
+
+
+When we measure the eigenvalue of \(M_1\), we determine if a bit flip error has occurred on qubit one or two, i.e., if \(X_1\) or \(X_2\) has occurred. Note that both of these errors anti-commute with \(M_1\), while \(X_3\) through \(X_9\), which cannot be detected by just \(M_1\), commute with it. Similarly, \(M_2\) detects \(X_1\) or \(X_3\), which anti-commute with it. Similarly \(M_7\) detects a phase flip error among the first six qubits, namely the possibly single errors  \(Z_1, Z_2, Z_3, Z_4, Z_5,\) or \(Z_6\). In general, if \(M \in S, \{M,E\} = 0\), and \(\ket{\psi}\) in the codespace, then
+\begin{align*}
+    ME \ket{\psi}  = - EM \ket{\psi} = -E\ket{\psi},
+\end{align*}
+so \(E \ket{\psi}\) is an eigenvector of \(M\) with eigenvalue \(-1\) instead of \(+1\) and to detect \(E\) we need only measure \(M\).
+
+\section{Stabilizer Codes}
+We will now examine the mathematics of error operators and syndromes, using the insightful approach put forward by Gottesman  and Calderbank et. al. This introduced the concept of the stabilizer, which yielded great insights into quantum error correction codes, and changed the approach from studying the code itself to studying the error operators. 
+
+Consider the set \(\{I, X, Y, Z\}\) consisting of the identity plus the three Pauli operators. The Pauli operators all square to \(I\): \(X^2 = Y^2 = Z^2 = I\), and have eigenvalues \(\pm 1\). Two members of the set only ever commute  or anticommute. Tensor products of Pauli operators, i.e. error operators, also square to one and either commute or anticommute. 
+
+
+\subsection{Error Vectors for error operators}
+If there are \(n\) qubits in the quantum system, then error operators will be of length \(n\). We know any error operator can be regarded as a tensor product of the Pauli operators. In particular, any error operator can be decomposed as a product of an \(X\) error vector and an \(Z\) error vector. For example, error vector \(X\otimes I\otimes Z \otimes Y \otimes X\) can be written as \(X\otimes I\otimes I \otimes X \otimes X\) times \(I\otimes I\otimes Z \otimes Z \otimes I\). We define \(X_{iX}\) to be the \(X\) error vector, where \(iX\) is an \(n\)-bit vector that the \(k\)-th position is \(1\) if and only the \(k\)-th position of the \(X\) error vector is \(X\); similarly we define \(Z_{iZ}\) to be the \(Z\) error vector. For example, \(X_{10011}\) is the error vector representing \(X\otimes I\otimes I \otimes X \otimes X\).
+
+The weight of an error operator is sum of the Hamming weight of \(iX\) and Hamming weight of \(iZ\). For example \(X_{10011}Z_{00110}\) has length \(5\), weight \(4\).
+
+Any \(X\) vector commutes with another \(X\) vector, as any \(Z\) vector commutes with another \(Z\) vector. When does an \(X\) vector commutes with an \(Z\) vector? We can state it cleanly using the error vector notation. 
+\begin{lemma}
+    \[X_{iX} Z_{iZ} = Z_{iZ} X_{iX} \;\; \text{if and only if }\;\; iX\cdot iZ = 0\]
+    \label{lemma:Stable}
+\end{lemma}
+
+Let \(H = \{M\}\) be a set of commuting error operators. Since the operators all commute, they can have simultaneous eigenstates. This is necessary and sufficient. It is necessary as if two operators \(\{E, F\}\) have simultaneous eigenstate \(\ket{\psi}\), then:
+\begin{align*}
+    & EF\ket{\psi} = E\ket{\psi} = \psi = FE\ket{\psi} \\
+ \Rightarrow & (EF-FE)\ket{\psi} = 0 \\
+    & E,\; F \;\; \text{commute}
+\end{align*}
+
+
+Let \(C = \{\ket{u}\}\) be an orthonormal set of simultaneous eigenstates all having eigenvalue \(+1\):
+\begin{align*}
+M\ket{u}=\ket{u}  u \in C,  M \in H.    
+\end{align*}
+
+The set C is a quantum error correcting code, and H is its stabilizer. 
+
+The orthonormal states \(\ket{u}\) are termed code vectors or quantum codewords. We further assume \(H\) is a group. Its size is \(2^{n-k}\), and it is spanned by \(n-k\) linearly independent members of \(H\). In this case \(C\) has \(2^k\) members, so it encodes \(k\) qubits, 
+since its members span a \(2^k\) dimensional subspace of the \(2^n\)
+dimensional Hilbert space of the whole system. A general state in this subspace, called an encoded state or logical state, can be expressed as a superposition of the code vectors:
+\begin{align*}
+\ket{\phi}_L = \sum_{u \in C} a_u \ket{u}    
+\end{align*}
+
+
+Naturally, a given QECC does not allow correction of all possible errors. Each code allows correction of a particular set S = {E} of correctable errors. The task of code construction consists of finding codes whose correctable set includes the errors most likely to occur in a given physical situation. We will turn to this important topic in the next section. First, let us show how the correctable set is related to the stabilizer, and demonstrate how the error correction is actually achieved.
+
+\subsection{Harmless Errors, Detectable Errors, and Undetectable Errors: the Good, Bad, and Ugly}
+Using the stabilizer formalization, we can categorize different error operators afflicted by the computation environment.
+
+Suppose \(E\) commutes with some \(M \in H\), so that
+\(ME\ket{\psi} = EM \ket{\psi} = E \ket{\psi}\). \(E\ket{\psi}\) is a \(+1\) eigenvector of \(M\), so \(E\) is not detected as an error from stabilizer element \(M\). Conversely, suppose \(E\) and \(M\) anticommute so \(E\ket{\psi}\) is a \(-1\) eigenvector of \(M\). Then \(E\) is detected as an error.
+
+
+Let \(N(S)\) be the set of operators \(N\) which commute with all \(M\in H\). A stabilizer code detects errors outside of \(N(S) \ S\) because errors outside of \(N(S)\) anticommute with stabilizers and are detected by measuring eigenvalues. These are the \textbf{Bad} errors. Errors in \(H\) act like the identity by definition - they are trivial errors, or the \textbf{Good} errors. While the errors in \(N(S) \ S\) cannot be detected - they are the \textbf{Ugly} ones.
+
+
+Define the weight of a code to be the minimum of the set of weights of the elements of \(N(S) \ S\). The weight of a code is the weight of the smallest error it cannot detect.
+
+\subsection{Error Correcting}
+Correcting error requires us to know exactly which operator had its eigenvalues change, so that we can apply the proper recovery procedure. We do this by measuring the eigenvalues of every operator in the stabilizer and noting that they can change differently due to different errors. For instance, an error that commutes with the first generator but not the second will give eigenvalues of \(+1\) and \(-1\); these will be flipped for the opposite commutation.
+
+It can be shown that \(E\) and \(F\) have the same error syndrome (eigenvalue measurements) if and only \(E^{\dagger} F \in N(S)\). Then if \(E^{\dagger} F \notin N(S)\), \(E\) and \(F\) may be distinguished by their different error syndromes. Meanwhile, if \(E^{\dagger} F \in S\), then \(E\ket{\psi} = F\ket{\psi}\), and we cannot distinguish between the two errors but don’t need to because they do the same thing to the codewords. Then a stabilizer code corrects errors for which \(E^{\dagger} F \notin N(S) \ S\) for all possible pairs of errors \((E,S)\).
+
+
+\section{CSS stabilizers}
+For CSS code, the error operators in the stabilizers \(H\) can be partitioned into two subgroups pure \(X\) operators and \(Z\) operators, denoted by \(H_X\) and \(H_Z\). Elements of \(H_X\) correct bit flip errors and elements of \(H_Z\) correct phase flip errors.  
+
+\(H_X\) is constructed from the parity check matrix of one classical code \(C_1\). Specifically, in that parity check matrix, each row corresponds to an error operator by replacing the "1" as \(Z\) and "0" as \(I\). (Bit flip errors are detected and corrected by \(Z\) operators). Assume \(C_1\) is \((n, k_1, d_1)\) code, then \(H_X\) has \(n-k_1\) elements. The error vector for each error operator is simply the binary vector corresponding row. 
+
+Similarly, \(H_Z\) is constructed from the parity check matrix of another classical code \(C_2\). Specifically, in that parity check matrix, each row corresponds to an error operator by replacing the "1" as \(X\) and "0" as \(I\). (Bit flip errors are detected and corrected by \(X\) operators). Assume \(C_2\) is \((n, k_2, d_2)\) code, then \(H_Z\) has \(n-k_2\) elements. The error vector for each error operator is simply the binary vector corresponding row. 
+
+The concatenated code has total \((n-k_1 + n - k_2) = 2n - (k_1 + k_2)\) constraints, so the code dimension is \([[n, k_1 + k_2 -n, \text{min}(d_1, d_2)]]\).
+
+Elements in \(H_X\) commute, so do the elements in \(H_Z\). For a pair element \(X_{iX} \in H_X\) and \(Z_{iZ} \in H_Z\) to commute, we need \(iX\cdot iZ = 0\), where \(iX, iZ\) are the error vectors, as stated in Lemma \ref{lemma:Stable}.  
+
+
+Let us now illustrate the Steane code in this new formalization.
+
+
+\section{The Error Operator On Codewords}
