@@ -15,372 +15,469 @@
 %#############################################################
 
 \section{Introduction}
-In our discussion of block linear codes, we have seen that the tradeoff between the rate of the code, ie \(R= k/n\), and the decoding error probability \(P_e\), is fundamental. On one hand, to achieve reliable communication over a noisy channel, we need to add sufficient redundancy as a funciton of the noise level; on the other hand, the redundancy added reduces the actual information that can be transmitted over. So what is this optimal trade-off, as a function of the noise level present in the communication channel? Since noise is stochastic, we have to state the problem carefully. 
+In our study of block linear codes, we saw a fundamental tension between the rate of a code, \(R = k/n\), and its decoding error probability \(P_e\). To communicate reliably over a noisy channel, we must add redundancy, and the noisier the channel, the more redundancy we need. But every redundant bit takes the place of an information bit, so more protection means a lower rate. This lecture answers a natural question: \emph{what is the best possible trade-off between rate and reliability for a given level of noise?} Because the noise is random, we first need to state this question precisely.
 
-Before Shannon’s 1948 work, people generally assumed that getting reliable communication, i.e. driving the bit error rate \(P_b \rightarrow 0\) requires a vanishing rate. But Shannon in his landmark 1948 paper showed that we do not have to sacrifice rate to communicate reliably. 
+Before Shannon's landmark 1948 paper, it was widely believed that driving the error probability to zero required driving the rate to zero as well, just as the repetition code needs more and more repetitions to become more reliable. Shannon showed that this intuition is wrong: we do not have to give up rate to communicate reliably.
 
-\paragraph{Shannon's limit} Shannon’s remarkable theorem on channel coding gives a definitive answer on this trade-off. The theorem identifies when reliable transmission is possible over the stochastic noise models. In particular, for the general framework of noise models, Shannon defined the notion of capacity \(C\), which is a real number such that reliable communication is possible if and only if the rate is less than the capacity of the channel. 
+\paragraph{Shannon's limit.} For a broad class of noise models, Shannon defined a single number, the \emph{capacity} \(C\) of the channel, and showed that it is exactly the boundary between what is possible and what is not:
+\begin{itemize}
+    \item if \(R < C\), there exist codes whose error probability can be made as small as we like, by taking the block length \(n\) large enough;
+    \item if \(R > C\), then every code, no matter how cleverly designed, has an error probability that stays bounded away from zero.
+\end{itemize}
 
-In other words, given a noisy channel with capacity \(C\), if information is transmitted at rate \(R\) for any \(R < C\) , then there exists a coding scheme that guarantees negligible error probability of communication. On the other hand if \(R > C\), then regardless of the chosen coding scheme there will be some message for which the decoding error probability is bounded from below by some constant. 
+\paragraph{Roadmap.} To state and understand this result, we need a few tools from information theory. In Section~\ref{sec:infotheory} we introduce entropy, joint and conditional entropy, relative entropy, and mutual information. In Section~\ref{sec:capacity} we define a channel, a code and its rate, and the capacity, and we compute the capacity of the standard binary-input memoryless channels: the noiseless channel, the binary symmetric channel (BSC), the binary erasure channel (BEC), and the binary-input additive white Gaussian noise channel (BAWGNC). In Section~\ref{sec:coding_thm} we state Shannon's channel coding theorem, and in Section~\ref{sec:proof} we sketch its proof for the BSC.
 
-In this chapter, we will review some of the fundamental concepts in information theory, in the context of a communication channel with noise. We discuss these concepts more relevant to the channel coding: entropy, relative entropy, and mutual information. Then we define the channel capacity, aka Shannon's limit, as the maximum mutual information over the input probability function. For simplicity, we focus on binary input memoryless channels. Then, we will describe the channel capacity for some of the standard binary input noise models. Finally we state Shannon’s theorem, and show a sketch of the proof for the special case of Binary Symmetric Channel.
-
-\section{Information Theory}
+\section{Information Theory}\label{sec:infotheory}
 \subsection{Entropy Of A Discrete Random Variable}
-Suppose \(X\) is a discrete random variable over a finite support set \(\mathcal{X} = \{x_1, x_2, \cdots, x_n\}\). Let \(p_i = P(X=x_i)\) for each \(1 \leq i \leq n\). The entropy of \(X\) is defined as 
-\begin{align}
-    H(X) = \sum_{x \in \mathcal{X}} p(x) \log \frac{1}{p(x)} = \sum_{i=1}^{n} p_i \log \frac{1}{p_i}.\label{eq:entropy}
-\end{align}
-We can use any base in the log in the above definition. If we use log in base \(2\), the resulting unit of the entropy is bit; if we use the natural log, then the unit is nat. In our discussion, we use log in base \(2)\) as the default.
-
-The entropy \(H(X)\) of a discrete random variable \(X\) is a measure of the amount of uncertainty associated with the value of \(X\) given its density function. The more uniform the distribution is, the higher the entropy.
-
-
-
-\begin{example}
-Let \(X\) represents the outcome of a single coin toss of a fair coin. Then \(\mathcal{X} = \{H, T\}\) and \(p_1 = p_2 = \frac{1}{2}\). We have \(H(X) = 1\) bits. 
-\end{example}
-
-\begin{example}
-    Let \(X\) represents the outcome of a single coin toss of a biased coin, where the probability of getting a head is \(p\) and the probability of get a tail is \(1-p\). Here \[H(X) = -p\log_{2} p - (1-p) \log_{2} (1-p) = H(p)\] bits. 
-
-    The graph of the function \(H(p)\) is shown in Figure~. The figure illustrates some of the basic properties of entropy: first, it is a concave function of \(p\), and it is symmetric, and the uncertainty is maximum when \(p=\frac{1}{2}.\)
-\end{example}
-
-\begin{example}
-Let \(X\) represents the outcome of a single roll of a fair die. Then \(\mathcal{X} = \{1, 2, 3, 4, 5, 6\}\) and \(p_i = \frac{1}{6}\) for each \(1\leq i \leq 6\). Here we have \(H(X)= \log_{2}(6)\) bits.
-\end{example}
-
-\begin{theorem}
-Assume \(X\) is a discrete random variable over a finite support set \(\mathcal{X} = \{x_1, x_2, \cdots, x_n\}\). Then 
-\[ 0 \leq H(X) \leq \log n.\]
-Furthermore, \(H(X)=0\) iff \(p_i=1\) for some \(i\); \(H(X)=\log (n)\) iff \(p_i = 1/n\) for all \(i\).
-\end{theorem}
-
-\textbf{Proof:} First in the definition of entropy Eq~\ref{eq:entropy}, each term \(p_i \log \frac{1}{p_i}\) is non-negative, so \(H(x) \geq 0\). Since term \(p_i \log \frac{1}{p_i}\) is zero iff \(p_i = 0\) or \(1\), we have \(H(X)=0\) iff \(p_i=1\) for some \(i\).
-
-For the other direction, we use the fact that \(\log\) function is concave down and apply Jensen's inequality:
-\begin{align*}
-    H(X) &= \sum_{i=1}^{n} p_i \log \frac{1}{p_i} \\
-        &\leq \log (\sum_{i=1}^{n}p_i \frac{1}{p_i}) \\
-        &= \log(n).
-\end{align*}
-For Jensen's inequality to hold equality, all \(p_i\) must be equivalent, which equals to \(\frac{1}{n}\).
-
-\subsection{Joint Entropy}
-We now extend the entropy definition to a pair of random variables \(X, Y\). If we treat the pair of random variable \((X,Y)\) as a new random variable \(Z=(X,Y)\), which is a Cartesian product of two random variables, then the entropy of \(Z\) is the joint entropy of the two random variables \(X,\) and \(Y\).
-
+Suppose \(X\) is a discrete random variable taking values in a finite set \(\mathcal{X} = \{x_1, x_2, \cdots, x_n\}\), with \(p_i = P(X=x_i)\) for each \(1 \leq i \leq n\). We write \(p(x) = P(X = x)\).
 \begin{definition}
-    The joint entropy \(H(X,Y)\) of a pair of discrete random variable \(X,Y\) with a joint distribution \(p(x,y)\) is defined as 
-    \[ H(X,Y) = -E[\log p(x,y)] = -\sum_{x,y} p(x,y) \log p(x, y).\]
+The entropy of \(X\) is
+\begin{align}
+    H(X) = \sum_{x \in \mathcal{X}} p(x) \log \frac{1}{p(x)} = \sum_{i=1}^{n} p_i \log \frac{1}{p_i},\label{eq:entropy}
+\end{align}
+with the convention \(0 \log \frac{1}{0} = 0\).
 \end{definition}
+Any base can be used for the logarithm. With base \(2\), entropy is measured in bits; with the natural logarithm, it is measured in nats. Throughout this course, \(\log\) means \(\log_2\) unless stated otherwise.
 
-\begin{theorem}
-If \(X, Y\) are two independent random variables, ie \(p(x,y) = p(x)p(y)\), then 
-\[H(X,Y) = H(X) + H(Y).\]
-\end{theorem}
+The quantity \(\log \frac{1}{p(x)}\) is the ``surprise'' of observing the outcome \(x\): rare outcomes are more surprising. The entropy \(H(X)\) is the average surprise, and it measures the uncertainty about the value of \(X\) before we observe it. Equivalently, it is the average number of bits needed to describe \(X\). The more spread out the distribution, the higher the entropy.
 
-\subsection{Conditional Entropy} 
-The conditional entropy of \(Y\) given \(X\) is defined as
-\begin{equation}
-H(X|Y) = - E[\log {p(x|y)}] = - \sum_{x \in \mathcal{X}, y \in \mathcal{Y}} p(x,y) \log_{2} p(x|y), \label{eq:CondEntropy}
-\end{equation}
-where \(\mathcal{X}\) and \(\mathcal{Y}\) denote the support sets of \(X\) and \(Y\). 
+\begin{example}
+Let \(X\) be the outcome of a toss of a fair coin. Then \(\mathcal{X} = \{H, T\}\) and \(p_1 = p_2 = \frac{1}{2}\), so \(H(X) = 1\) bit.
+\end{example}
 
-Another way to think about \(H(X|Y)\) is to treat \(H(X|Y=y)\) as a random value and \(H(X|Y)\) is the expected value of this random variable. 
+\begin{example}\label{ex:binary_entropy}
+Let \(X\) be the outcome of a toss of a biased coin that lands heads with probability \(p\) and tails with probability \(1-p\). Then
+\[H(X) = -p\log_{2} p - (1-p) \log_{2} (1-p) \triangleq H(p)\ \text{bits}.\]
+The function \(H(p)\) is called the \emph{binary entropy function}; we already met it in the Hamming and Gilbert--Varshamov bounds, and it will appear in every capacity formula in this lecture. Figure~\ref{fig:binary_entropy} shows its basic properties: it is concave in \(p\), symmetric about \(p = \frac{1}{2}\), equal to \(0\) at \(p = 0\) and \(p = 1\) (no uncertainty), and maximal, equal to \(1\), at \(p=\frac{1}{2}\).
+\end{example}
 
-\begin{equation}
-H(X|Y) = E_y[H(X|Y=y)] = \sum_{y \in \mathcal{Y}} p(x,y) \log_{2} p(x|y), \label{eq:CondEntropy2}
-\end{equation}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.55\textwidth]{Figs/binary_entropy.jpg}
+    \caption{The binary entropy function \(H(p)\).}
+    \label{fig:binary_entropy}
+\end{figure}
 
+\begin{example}
+Let \(X\) be the outcome of a roll of a fair die. Then \(\mathcal{X} = \{1, 2, 3, 4, 5, 6\}\) and \(p_i = \frac{1}{6}\) for each \(1\leq i \leq 6\), so \(H(X)= \log_{2}6 \approx 2.585\) bits.
+\end{example}
 
-We will verify that this view gives the same value as the official definition. 
+The last two examples suggest that entropy is largest for the uniform distribution. The next theorem makes this precise.
 
-
-\begin{theorem} (Chain rule)
-\begin{equation}
-    H(X,Y) = H(X) + H(Y|X).
-\end{equation}
+\begin{theorem}\label{thm:entropy_bounds}
+Let \(X\) be a discrete random variable taking values in a set \(\mathcal{X}\) of size \(n\). Then
+\[ 0 \leq H(X) \leq \log n.\]
+Furthermore, \(H(X)=0\) if and only if \(p_i=1\) for some \(i\), and \(H(X)=\log n\) if and only if \(p_i = 1/n\) for all \(i\).
 \end{theorem}
 
 \begin{proof}
-Fundamentally this follows from the well known relationship:
+Each term \(p_i \log \frac{1}{p_i}\) in Eq~\ref{eq:entropy} is non-negative, so \(H(X) \geq 0\). A term is zero if and only if \(p_i = 0\) or \(p_i = 1\), so \(H(X)=0\) if and only if one outcome has probability \(1\).
+
+For the upper bound, we use the fact that \(\log\) is concave and apply Jensen's inequality, summing over the outcomes with \(p_i > 0\):
+\begin{align*}
+    H(X) = \sum_{i} p_i \log \frac{1}{p_i} \leq \log \Big(\sum_{i} p_i \cdot \frac{1}{p_i}\Big) \leq \log n.
+\end{align*}
+Equality in Jensen's inequality holds if and only if \(\frac{1}{p_i}\) is the same for all \(i\), that is, \(p_i = \frac{1}{n}\) for all \(i\).
+\end{proof}
+
+\subsection{Joint Entropy}
+We now extend entropy to a pair of random variables \(X\) and \(Y\). The pair \(Z = (X,Y)\) is itself a discrete random variable, taking values in \(\mathcal{X} \times \mathcal{Y}\), and its entropy is called the joint entropy of \(X\) and \(Y\).
+
+\begin{definition}
+    The joint entropy \(H(X,Y)\) of a pair of discrete random variables \(X,Y\) with joint distribution \(p(x,y)\) is
+    \[ H(X,Y) = -E[\log p(X,Y)] = -\sum_{x,y} p(x,y) \log p(x, y).\]
+\end{definition}
+
+\begin{theorem}\label{thm:indep_entropy}
+If \(X\) and \(Y\) are independent, i.e. \(p(x,y) = p(x)p(y)\), then
+\[H(X,Y) = H(X) + H(Y).\]
+\end{theorem}
+\begin{proof}
+Since \(\log p(x,y) = \log p(x) + \log p(y)\),
+\[H(X,Y) = -\sum_{x,y} p(x)p(y) \log p(x) - \sum_{x,y} p(x)p(y) \log p(y) = H(X) + H(Y).\]
+\end{proof}
+In words: the uncertainty of two independent quantities adds up. For example, \(n\) independent fair coin tosses have entropy \(n\) bits.
+
+\subsection{Conditional Entropy}
+When \(X\) and \(Y\) are dependent, observing \(Y\) tells us something about \(X\). Conditional entropy measures how much uncertainty about \(X\) remains after \(Y\) is observed.
+
+\begin{definition}
+The conditional entropy of \(X\) given \(Y\) is
+\begin{equation}
+H(X|Y) = - E[\log {p(X|Y)}] = - \sum_{x \in \mathcal{X}, y \in \mathcal{Y}} p(x,y) \log_{2} p(x|y). \label{eq:CondEntropy}
+\end{equation}
+\end{definition}
+
+Another way to think about \(H(X|Y)\) is as an average. For each fixed value \(y\), the conditional distribution \(p(x|y)\) has its own entropy
+\(H(X|Y=y) = -\sum_{x \in \mathcal{X}} p(x|y) \log_2 p(x|y)\), which is the remaining uncertainty about \(X\) when we observe that particular \(y\). Averaging over \(y\) gives
+\begin{equation}
+H(X|Y) = E_Y[H(X|Y=y)] = \sum_{y \in \mathcal{Y}} p(y) H(X|Y=y). \label{eq:CondEntropy2}
+\end{equation}
+The two views agree, since \(p(y)p(x|y) = p(x,y)\):
+\begin{align*}
+\sum_{y \in \mathcal{Y}} p(y) H(X|Y=y) = -\sum_{y \in \mathcal{Y}} \sum_{x \in \mathcal{X}} p(y) p(x|y) \log_2 p(x|y) = -\sum_{x,y} p(x,y) \log_2 p(x|y).
+\end{align*}
+
+The most useful property of conditional entropy is the chain rule: the uncertainty of the pair is the uncertainty of the first variable, plus the uncertainty of the second once the first is known.
+
+\begin{theorem}[Chain rule]\label{thm:chain}
 \begin{equation*}
-p(x,y) = p(x)p(y|x).
+    H(X,Y) = H(X) + H(Y|X) = H(Y) + H(X|Y).
 \end{equation*}
+\end{theorem}
 
-Taking logarithm both side, we have 
-
+\begin{proof}
+The rule follows from the factorization \(p(x,y) = p(x)p(y|x)\). Taking logarithms of both sides gives
 \begin{align*}
 -\log p(x,y) = -\log p(x) - \log p(y|x).
 \end{align*}
-
-Therefore, 
+Averaging over \(p(x,y)\),
 \begin{align*}
     H(X,Y) &= - \sum_{x,y} p(x,y) \log p(x,y) \\
            &= - \sum_{x,y} p(x,y) \log p(x) - \sum_{x,y} p(x,y) \log p(y|x)  \\
-           &= H(X) + H(Y|X)
+           &= H(X) + H(Y|X),
 \end{align*}
-
+where in the first sum we used \(\sum_y p(x,y) = p(x)\). The second equality follows in the same way from \(p(x,y) = p(y)p(x|y)\).
 \end{proof}
 
-
-\subsection{Relative Entropy} 
-
-Entropy of a random variable is a measure of the amount of the information required on the average to describe the random variable; it is a measure of the distribution. 
-
-Relative entropy or Kullback Leibler divergence is a measure of the distance between two distributions \(p(x)\) and \(q(x)\)
-
+\subsection{Relative Entropy}
+Entropy is a property of a single distribution. Relative entropy compares two distributions \(p(x)\) and \(q(x)\) on the same set \(\mathcal{X}\).
 
 \begin{definition}
+The relative entropy, or Kullback--Leibler (KL) divergence, of \(p\) with respect to \(q\) is
 \begin{equation*}
-D(p||q) = \sum_{x} p(x) \log \frac{p(x)}{q(x)}.    
+D(p\|q) = \sum_{x} p(x) \log \frac{p(x)}{q(x)}.
 \end{equation*}
 \end{definition}
 
-Using relative entropy as a target function is an important technique in machine learning. For example, in image classification, we minimize the the relative entropy between the estimated probability density function and the labeled data density function. 
+It can be interpreted as the penalty we pay, in extra bits per symbol, for describing data that follows \(p\) using a description designed for \(q\). Its key property is that it is never negative.
 
+\begin{theorem}[Gibbs' inequality]\label{thm:gibbs}
+\(D(p\|q) \geq 0\), with equality if and only if \(p = q\).
+\end{theorem}
+\begin{proof}
+Summing over \(x\) with \(p(x) > 0\) and applying Jensen's inequality to the concave function \(\log\),
+\begin{align*}
+-D(p\|q) = \sum_{x} p(x) \log \frac{q(x)}{p(x)} \leq \log \Big(\sum_{x} p(x) \frac{q(x)}{p(x)}\Big) = \log \Big(\sum_{x:\,p(x)>0} q(x)\Big) \leq \log 1 = 0.
+\end{align*}
+Equality requires \(q(x)/p(x)\) to be constant, which together with both distributions summing to \(1\) means \(p = q\).
+\end{proof}
+
+Because of this, relative entropy is often used as a measure of how far apart two distributions are. It is not a true distance, however: in general \(D(p\|q) \neq D(q\|p)\), and it does not satisfy the triangle inequality.
+
+Relative entropy is also a central tool in machine learning. For example, the cross-entropy loss used to train classifiers equals \(H(p) + D(p\|q)\), where \(p\) is the distribution of the true labels and \(q\) is the distribution predicted by the model. Since \(H(p)\) does not depend on the model, minimizing the cross-entropy loss is the same as minimizing \(D(p\|q)\).
 
 \subsection{Mutual Information}
-The mutual information (MI) of two random variables is a measure of the mutual dependence between the two variables. 
-
-It is defined as
-\begin{align}
-I(X,Y) &= H(X) - H(X|Y)
-\end{align}
-
-In plain language, \(H(X)\) is the uncertainty for the random variable \(X\), \(H(X|Y)\) is the uncertainty for the random variable \(X\) after \(Y\) is known, so \(H(X) - H(X|Y)\) is the information about \(X\) contained in the \(Y\), or the mutual dependence.
-
-
-Alternatively, the mutual information can be defined as a relative entropy between two distributions on \(X,Y\): the joint density \(p(x,y)\) and the product of the marginal distribution \(p(x)p(y)\).
+We now come to the quantity that governs channel capacity. The mutual information of two random variables measures how much information one carries about the other.
 
 \begin{definition}
-Let \((X,Y)\) be random variables over alphabet \(\Sigma_X, \Sigma_Y\). If the joint distribution is \(p(x, y)\), and the product marginal distribution is \(p(x)p(y)\), then mutual information is the Kullback-Liebler Divergence of \(p(x,y)\) and \(p(x)p(y)\), ie
-\begin{equation}
-    I(X;Y) = D_{KL}(p(x,y)||p(x)p(y)) = \sum_{x\in\Sigma_X}\sum_{y\in \Sigma_Y} p(x,y) \log \frac{p(x,y)}{p(x)p(y)}
-\end{equation}    
+The mutual information between \(X\) and \(Y\) is
+\begin{align}
+I(X;Y) = H(X) - H(X|Y).\label{eq:MI}
+\end{align}
 \end{definition}
 
-We can show that this definition is consistent with the first definition. 
+In plain language, \(H(X)\) is the uncertainty about \(X\) before we observe \(Y\), and \(H(X|Y)\) is the uncertainty that remains after we observe \(Y\). Their difference is the reduction in uncertainty about \(X\) provided by \(Y\), i.e. the information about \(X\) contained in \(Y\). In a communication channel, \(X\) is the transmitted symbol and \(Y\) the received one, so \(I(X;Y)\) is how much the receiver learns about what was sent.
+
+Mutual information can also be written as a relative entropy, between the joint distribution \(p(x,y)\) and the product of the marginals \(p(x)p(y)\). The latter is what the joint distribution would be if \(X\) and \(Y\) were independent, so this form measures how far \(X\) and \(Y\) are from independence.
+
+\begin{proposition}\label{prop:MI_KL}
+\begin{equation*}
+    I(X;Y) = D\big(p(x,y)\,\|\,p(x)p(y)\big) = \sum_{x\in\mathcal{X}}\sum_{y\in \mathcal{Y}} p(x,y) \log \frac{p(x,y)}{p(x)p(y)}.
+\end{equation*}
+\end{proposition}
 
 \begin{proof}
+Using \(p(x,y) = p(y)p(x|y)\),
 \begin{align*}
-    D_{KL}(p(x,y)||p(x)p(y)) &= \sum_{x\in\Sigma_X}\sum_{y\in \Sigma_Y} p(x,y) \log \frac{p(x,y)}{p(x)p(y)} \\
-    &= - \sum_{x\in\Sigma_X} \sum_{y\in \Sigma_Y} p(x,y) \log p(x) - \sum_{x\in\Sigma_X} \sum_{y\in \Sigma_Y} p(x,y) \log \frac{p(x|y)} \\
-    &= H(X) - H(X|Y)
+    \sum_{x,y} p(x,y) \log \frac{p(x,y)}{p(x)p(y)} &= \sum_{x,y} p(x,y) \log \frac{p(x|y)}{p(x)} \\
+    &= - \sum_{x,y} p(x,y) \log p(x) + \sum_{x,y} p(x,y) \log p(x|y) \\
+    &= H(X) - H(X|Y).
 \end{align*}
-    
 \end{proof}
 
+The two forms together give the main properties of mutual information.
 
-The mutual information has the following properties:
-
-\begin{proposition}
-Non-negativity: ie \(I(X;Y) \geq 0\).     
+\begin{proposition}\label{prop:MI_props}
+\begin{enumerate}
+    \item Non-negativity: \(I(X;Y) \geq 0\), with equality if and only if \(X\) and \(Y\) are independent.
+    \item Symmetry: \(I(X;Y) = I(Y;X)\), that is, \(H(X) - H(X|Y) = H(Y) - H(Y|X)\).
+    \item \(I(X;Y) = H(X) + H(Y) - H(X,Y)\).
+    \item Conditioning reduces entropy: \(H(X|Y) \leq H(X)\).
+\end{enumerate}
 \end{proposition}
 \begin{proof}
-    By Jensen's inequality:
-    \begin{align*}
-      I(X;Y) &=  \sum_{x\in\Sigma_X}\sum_{y\in \Sigma_Y} p(x,y) \log \frac{p(x,y)}{p(x)p(y)}\\
-             &= - \sum_{x\in\Sigma_X}\sum_{y\in \Sigma_Y} p(x,y) \log \frac{p(x)p(y)}{p(x,y)}\\
-             &\geq - \log (\sum_{x\in\Sigma_X}\sum_{y\in \Sigma_Y} p(x,y) \frac{p(x)p(y)}{p(x,y)} ) \\
-             &= -\log (\sum_{x\in\Sigma_X}\sum_{y\in \Sigma_Y} p(x)p(y) \\
-             &= -\log(1) \\
-             &= 0  
-    \end{align*}
+(1) follows from Proposition~\ref{prop:MI_KL} and Gibbs' inequality (Theorem~\ref{thm:gibbs}), since \(p(x,y) = p(x)p(y)\) exactly when \(X\) and \(Y\) are independent. (2) holds because the expression in Proposition~\ref{prop:MI_KL} is symmetric in \(x\) and \(y\). (3) follows by substituting \(H(X|Y) = H(X,Y) - H(Y)\) from the chain rule into Eq~\ref{eq:MI}. (4) is a restatement of (1).
 \end{proof}
 
-\begin{proposition}
-Symmetry: ie \(I(X;Y) = I(Y;X)\).    
-\end{proposition}
-\begin{proof}
-    In the second definition, the function is symmetric on \(x,\) and \(y\). So \(I(X;Y)=I(Y;X)\). That means 
-    \[H(X) - H(X|Y) = H(Y) - H(Y|X).\]
-\end{proof}
-
+Property (4) matches our intuition: on average, learning \(Y\) can never make us more uncertain about \(X\). Property (2) is less obvious: \(Y\) tells us exactly as much about \(X\) as \(X\) tells us about \(Y\). For a channel this is convenient, because it lets us compute \(I(X;Y)\) from either side, whichever is easier.
 
 \subsection{The Venn Diagram of Entropy and Mutual Information}
-The relationship between \(H(X), H(Y), H(X,Y), H(X|Y), H(Y|X)\) and \(I(X,Y)\) is expressed in a Venn diagram. 
+The relationships among \(H(X)\), \(H(Y)\), \(H(X,Y)\), \(H(X|Y)\), \(H(Y|X)\) and \(I(X;Y)\) can be summarized in a Venn diagram (Figure~\ref{fig:entropy_venn}). Each circle represents the entropy of one variable; their union is the joint entropy \(H(X,Y)\), and their overlap is the mutual information \(I(X;Y)\). The part of the \(X\) circle outside the overlap is \(H(X|Y)\), and similarly for \(H(Y|X)\). All the identities above, such as the chain rule and \(I(X;Y) = H(X) + H(Y) - H(X,Y)\), can be read off the diagram.
 
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.6\textwidth]{Figs/Entropy_Venn.png}
-    \caption{Relationship between entropy and mutual information}
-    \label{fig:accumulator}
+    \includegraphics[width=0.5\textwidth]{Figs/Entropy_Venn.png}
+    \caption{Relationship between entropy and mutual information.}
+    \label{fig:entropy_venn}
 \end{figure}
 
 
-\section{Capacity for Binary Input Memoryless Channels}
-With entropy, joint entropy, relative entropy, conditional entropy, and mutual information defined, we are now to describe the important result of this chapter: channel capacity. Channel capacity defines the absolute upper limit for channel coding: in 1948, Shannon showed that no matter how clever we are, the channel codes have to operate below the channel capacity to achieve reliable communication. Equally astonishingly, Shannon showed that if the rate is below the channel capacity, then reliable communication is absolutely possible!
+\section{Capacity for Binary Input Memoryless Channels}\label{sec:capacity}
+With these tools in hand, we can now describe the central result of this lecture: the channel capacity. We first set up the communication model precisely, then define capacity and compute it for several standard channels.
 
-We will not give the full proof of this result in a general setting. Instead, we will give a short summary on the channel capacity of various binary input memoryless channels, describe the channel coding theorem, and prove one part of it.
+\subsection{Channels, Codes, and Rates}
+A \emph{discrete memoryless channel} is described by an input alphabet \(\mathcal{X}\), an output alphabet \(\mathcal{Y}\), and transition probabilities \(p(y|x)\), the probability of receiving \(y\) when \(x\) is sent. In this lecture the input is binary, \(\mathcal{X} = \{0,1\}\). The channel is \emph{memoryless} if each use of it acts independently of all the others: when a word \(x^n = (x_1, \dots, x_n)\) is sent, the received word \(y^n\) has probability
+\[p(y^n | x^n) = \prod_{i=1}^n p(y_i | x_i).\]
 
-\subsection{Channel Capacity}
+As in the lecture on block linear codes, an \((n,k)\) code \(\mathcal{C}\) consists of \(2^k\) codewords of length \(n\), one for each message \(m \in \{0,1\}^k\). The encoder maps a message \(m\) to its codeword \(c_m\), the channel corrupts it into \(y^n\), and the decoder produces an estimate \(\hat{m}\). The rate of the code is \(R = k/n\) bits per channel use, and its block error probability for message \(m\) is \(P(\hat{m} \neq m \mid m \text{ sent})\).
+
 \begin{definition}
-    Channel Capacity: this is the maximal rate of reliable communication:
+    A rate \(R\) is \emph{achievable} if there exists a sequence of codes of rate \(R\) and increasing block length \(n\) whose block error probability tends to \(0\) as \(n \to \infty\).
+    The \emph{capacity} of the channel is the maximal rate of reliable communication:
     \begin{align*}
-        C = \sup{R| R \mbox{ is achievable}}
+        C = \sup\{R \mid R \mbox{ is achievable}\}.
     \end{align*}
 \end{definition}
 
-\begin{theorem}
-The channel capacity equals to the maximum mutual information.
-\[C = \sup_{p_{X}(x)} I(X;Y).\]
-where the supremum is taken over all possible choices of \(p_X(x)\).        
+This definition is \emph{operational}: it is about what codes can do, and on its face, computing \(C\) would require searching over all codes of all lengths. Shannon's remarkable insight is that capacity has a simple single-letter formula.
+
+\begin{theorem}[Shannon]\label{thm:capacity_formula}
+The capacity of a discrete memoryless channel equals the maximum mutual information between its input and output:
+\[C = \max_{p_{X}(x)} I(X;Y),\]
+where the maximum is taken over all input distributions \(p_X(x)\).
 \end{theorem}
 
-This is profound because it relates how much we can physically transmit over a channel reliably to the mutual information between input and output. This makes the complicated problem of finding channel capacity a clean optimization problem which involves finding the input distribution that maximizes the mutual information between the input and the output.
+This result is profound because it connects how much we can physically transmit over a channel reliably with an information-theoretic quantity describing a \emph{single} use of the channel. It turns the hard problem of finding the best codes into a clean optimization problem: find the input distribution that maximizes the mutual information between the input and the output. The operational meaning of this result is the noisy-channel coding theorem, which we state formally in Section~\ref{sec:coding_thm}.
 
-Let us state the Noisy-channel coding theorem in a formal way.
-\paragraph{Noisy-channel coding theorem}
-\begin{theorem}
-The noisy-channel coding theorem states that for any error probability \(\epsilon > 0\) and for any transmission rate \(R\) less than the channel capacity \(C\), there is an encoding and decoding scheme transmitting data at rate R whose error probability is less than \(\epsilon\), for a sufficiently large block length. Also, for any rate greater than the channel capacity, the probability of error at the receiver goes to \(0.5\) as the block length goes to infinity.
-\end{theorem}
+To compute \(I(X;Y)\) for a channel, it is usually easiest to use the form
+\[I(X;Y) = H(Y) - H(Y|X),\]
+because \(H(Y|X)\) depends only on the channel's transition probabilities, which we know. In each of the examples below, it turns out that the uniform input distribution \(p(x) = \{\frac{1}{2}, \frac{1}{2}\}\) is optimal.
 
 \subsection{Noiseless Binary Channel}
-Let us assume a channel whose binary input is reproduced exactly at the output. 
-
+Consider first a channel that reproduces its binary input exactly at the output, \(Y = X\). The output is completely determined by the input, so \(H(Y|X) = 0\), and
 \begin{align*}
     C &= \max I(X;Y) \\
       &= \max H(Y) - H(Y|X) \\
       &= \max H(X) \\
-      &= 1
+      &= 1,
 \end{align*}
-which is achieved by using \(p(x) = \{\frac{1}{2}, \frac{1}{2}\). 
+achieved by the uniform input \(p(x) = \{\frac{1}{2}, \frac{1}{2}\}\). As expected, a perfect channel carries one bit per use, and no coding is needed.
 
 \subsection{Binary Symmetric Channel}
-The binary symmetric channel has symmetric crossover probability \(p\).
+In the binary symmetric channel with crossover probability \(p\), shown in Figure~\ref{fig:bsc}, each transmitted bit is flipped with probability \(p\) and received correctly with probability \(1-p\), independently of the other bits.
 
-\begin{align*}
-C = \max I(X;Y) \\
-  &= \max H(Y) - H(Y|X) \\
-  &= \max H(Y) - H(p) \\
-  &\leq 1 - H(p)  
-\end{align*}
-this is achievable when \(p(x) = \{\frac{1}{2}, \frac{1}{2}\), when \(p(y=0) = p(y=1) = \frac{1}{2}\).
-So the channel capacity of BSC is \(1-H(p).\) 
-
-\subsection{Binary Erasure Channel}
-In the binary erasure channel, a fraction \(p\) of the bits are erased and the received knows the location of the erasures. So the received bits can be \(01*0111\star01\cdot\), where \(star\) represents the erasures and the non-erasures are received correctly. 
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.5\textwidth]{Figs/BEC_channel.png}
-    \caption{Binary Erasure channel. A bit has probability \(p\) erased; otherwise, it is received correctly. BEC is a good model for internet traffic.}
-    \label{fig:accumulator}
+    \includegraphics[width=0.45\textwidth]{Figs/BSC_Channel.png}
+    \caption{Binary symmetric channel with crossover probability \(p\).}
+    \label{fig:bsc}
 \end{figure}
 
+Whichever bit \(x\) is sent, the output is \(x\) with probability \(1-p\) and the flipped bit with probability \(p\), so \(H(Y|X=x) = H(p)\) for both values of \(x\), and hence \(H(Y|X) = H(p)\). Therefore
 \begin{align*}
-C = \max I(X;Y) \\
+C &= \max I(X;Y) \\
   &= \max H(Y) - H(Y|X) \\
-  &= \max H(Y) - H(p) 
+  &= \max H(Y) - H(p) \\
+  &\leq 1 - H(p),
 \end{align*}
+using \(H(Y) \leq 1\) for a binary \(Y\) (Theorem~\ref{thm:entropy_bounds}). The bound is met with equality when \(Y\) is uniform, which happens for the uniform input: \(P(Y=0) = \frac{1}{2}(1-p) + \frac{1}{2}p = \frac{1}{2}\). So the capacity of the BSC is
+\[C_{\mathrm{BSC}}(p) = 1-H(p).\]
 
-Now assume \(p(x= 0) = \pi,\) then \(p(x=1) = 1- \pi\), and we have \(p(y=0) = \pi (1-p), \), \(p(y=1) = (1-\pi) (1-p), \) and \(p(y=\star)= p.\)
-So 
+Some sanity checks: for \(p = 0\), the channel is noiseless and \(C = 1\). For \(p = \frac{1}{2}\), the output is independent of the input and \(C = 0\): nothing can be communicated. For \(p = 1\), the channel flips every bit, which the receiver can simply undo, and again \(C = 1\). For an intermediate value, \(p = 0.11\) gives \(H(p) \approx 0.5\), so the capacity is about \(0.5\): even though \(11\%\) of the bits are flipped, codes of rate close to \(1/2\) can communicate essentially without error.
+
+\subsection{Binary Erasure Channel}
+In the binary erasure channel with erasure probability \(p\), shown in Figure~\ref{fig:bec}, each bit is erased with probability \(p\) and received correctly otherwise. The receiver knows where the erasures are. So a received word looks like \(0\,1\,\star\,0\,1\,1\,1\,\star\,0\,1\), where \(\star\) marks an erasure and all other bits are correct. The output alphabet is \(\mathcal{Y} = \{0, 1, \star\}\).
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.45\textwidth]{Figs/BEC_channel.png}
+    \caption{Binary erasure channel. Each bit is erased with probability \(p\); otherwise, it is received correctly. The BEC is a good model for packet loss in internet traffic.}
+    \label{fig:bec}
+\end{figure}
+
+Whichever bit \(x\) is sent, the output is either \(x\) (probability \(1-p\)) or \(\star\) (probability \(p\)), so again \(H(Y|X) = H(p)\), and
 \begin{align*}
-    & H(Y) \\
-    &= - \pi (1-p) \log (\pi (1-p)) - (1-\pi) (1-p) \log ((1-\pi) (1-p)) - p \log p \\
-    &= (1-p)(-\pi \log (\pi) - (1-\pi)  \log (1-\pi)) - (1-p) \log (1-p)(\pi + (1-\pi))  - p \log p\\
-         &= (1-p) H(\pi) + H(p). 
+C &= \max I(X;Y) \\
+  &= \max H(Y) - H(Y|X) \\
+  &= \max H(Y) - H(p).
 \end{align*}
 
-Therefore \(C= \max H(Y) - H(p) = \max (1-p) H(\pi) = 1-p, \) where the maximum is achieved at \(\pi = \frac{1}{2}.\)
+To compute \(H(Y)\), let \(P(X=0) = \pi\) and \(P(X=1) = 1- \pi\). Then \(P(Y=0) = \pi (1-p)\), \(P(Y=1) = (1-\pi) (1-p)\), and \(P(Y=\star)= p\), so
+\begin{align*}
+    H(Y) &= - \pi (1-p) \log (\pi (1-p)) - (1-\pi) (1-p) \log ((1-\pi) (1-p)) - p \log p \\
+         &= (1-p)\big(-\pi \log \pi - (1-\pi)  \log (1-\pi)\big) - (1-p) \log (1-p)\big(\pi + (1-\pi)\big)  - p \log p\\
+         &= (1-p) H(\pi) + H(p).
+\end{align*}
+Therefore
+\[C = \max_\pi \big(H(Y) - H(p)\big) = \max_\pi (1-p) H(\pi) = 1-p,\]
+where the maximum is achieved at \(\pi = \frac{1}{2}\). So the capacity of the BEC is
+\[C_{\mathrm{BEC}}(p) = 1-p.\]
 
-This being the upper limit for channel coding on the binary erasure channel makes intuitive sense: since the channel erases fraction \(p\) of the transmitted bits, the total redundancy we increase has to be at least \(p\) to have a change at reliable communication, otherwise what received is smaller than the intended information. So the code rate has to be less than \(1-p.\) 
+The same answer comes out more quickly from the other form, \(I(X;Y) = H(X) - H(X|Y)\). If \(Y\) is \(0\) or \(1\), we know \(X\) exactly, so \(H(X|Y=y) = 0\); if \(Y = \star\), we have learned nothing, so \(H(X|Y=\star) = H(X)\). Averaging, \(H(X|Y) = pH(X)\), so \(I(X;Y) = (1-p)H(X)\), which is maximized by the uniform input.
+
+This capacity makes intuitive sense. The channel erases a fraction \(p\) of the transmitted bits, so on average only \(n(1-p)\) bits of a length-\(n\) codeword get through. To recover \(k\) information bits, we need at least \(k\) bits to arrive, so we need \(k \lesssim n(1-p)\), i.e. \(R < 1-p\). Shannon's theorem says this obvious upper limit can actually be approached.
+
+Comparing the two channels, \(1-p > 1-H(p)\) for \(0 < p < \frac{1}{2}\): an erasure is less harmful than a flip. At \(p = 0.11\), for example, the BEC has capacity \(0.89\) while the BSC has capacity only about \(0.5\). The difference is the value of knowing \emph{where} the errors are. On the BSC, part of the redundancy must be spent locating the errors; on the BEC, their locations are given for free.
 
 
-\subsection{Binary input Additive White-Guassian-Noise Channel}
-The Binary Additive White-Gaussian-Noise Channel (abbreviated as BAWGNC) is often used as a practical model in many digital communication schemes (such as transmission of data over a pair of wires). In practice, many types of noise sources are additive and independent of each other and thus, when added together, can be approximated by a zero-mean Gaussian random variable with some variance, say \(\sigma^2\). This approximation is justified by the central limit theorem.
+\subsection{Binary-Input Additive White Gaussian Noise Channel}
+The Binary-Input Additive White Gaussian Noise Channel (BAWGNC) is a widely used model of practical digital communication links, such as transmission over a pair of wires or a wireless link. In practice, the noise at the receiver is the sum of many small, independent contributions, so by the central limit theorem it is well approximated by a zero-mean Gaussian random variable with some variance \(\sigma^2\).
 
-The BAWGNC(\(\sigma)\) channel, as depicted in Figure 1, accepts a realization of a random variable \(X \in \{-1, +1\}\) on its input and outputs a realization of a random variable \(Y = X + Z\), where \(Z\) is a zero-mean Gaussian random variable with variance \(\sigma^2\). When combined together, we obtain the following conditional pdfs of Y
-This channel is fully described by the noise variance \(\sigma^2\).
+The BAWGNC(\(\sigma\)) channel, shown in Figure~\ref{fig:bawgn}, takes an input \(X \in \{-1, +1\}\) (the bits \(0\) and \(1\) mapped to the two signal levels) and outputs the real number \(Y = X + Z\), where \(Z \sim N(0, \sigma^2)\) is independent of \(X\). The conditional pdfs of \(Y\), shown in Figure~\ref{fig:bawgn_pdf}, are
+\[p(y \mid x = \pm 1) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left[-\frac{(y \mp 1)^2}{2\sigma^2}\right].\]
+The channel is fully described by the noise variance \(\sigma^2\). Since each input symbol has energy \(1\), its signal-to-noise ratio (SNR) is \(1/\sigma^2\).
 
-The capacity of this channel is given by the following formula
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.5\textwidth]{Figs/BAWGN_Channel.png}
+    \caption{Binary-input additive white Gaussian noise channel.}
+    \label{fig:bawgn}
+\end{figure}
 
-\[C_{BAWGN}(\sigma) = - \int_{-\inf}^{\inf} \Phi(y, \sigma) \log_2 \Phi(y, \sigma) dy - \frac{1}{2} \log_2 (2\pi \exp \sigma^2), \]
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.6\textwidth]{Figs/BAWGN_pdf.png}
+    \caption{Conditional pdfs of the BAWGNC output for \(\sigma^2 = 1\). The overlap between the two curves is what makes decoding uncertain.}
+    \label{fig:bawgn_pdf}
+\end{figure}
 
-where \(\Phi(y, \sigma\) is a mixtured Guassian: 
-\[\Phi(y, \sigma) = \frac{1}{2\sqrt{2\pi \sigma^2}} (\exp[-\frac{(y-1)^2}{2\sigma^2}] + \exp[-\frac{(y+1)^2}{2\sigma^2}]) \]
+Unlike the BSC and BEC, the output \(Y\) is continuous, so its entropy is replaced by the \emph{differential entropy} \(h(Y) = -\int p(y) \log_2 p(y)\, dy\). The capacity is computed exactly as before: \(I(X;Y) = h(Y) - h(Y|X)\). Given \(X\), the output is just a shifted copy of the noise, so \(h(Y|X) = h(Z) = \frac{1}{2} \log_2 (2\pi e \sigma^2)\), the differential entropy of a Gaussian. By symmetry, the uniform input is again optimal, and with it \(Y\) has the Gaussian mixture pdf
+\[\Phi(y, \sigma) = \frac{1}{2\sqrt{2\pi \sigma^2}} \left(\exp\left[-\frac{(y-1)^2}{2\sigma^2}\right] + \exp\left[-\frac{(y+1)^2}{2\sigma^2}\right]\right).\]
+This gives
+\[C_{\mathrm{BAWGN}}(\sigma) = - \int_{-\infty}^{\infty} \Phi(y, \sigma) \log_2 \Phi(y, \sigma)\, dy - \frac{1}{2} \log_2 (2\pi e \sigma^2). \]
+The integral has no closed form and is evaluated numerically. Interested students can find the details on differential entropy in \emph{Elements of Information Theory} by T.~Cover and J.~Thomas.
 
-The derivation of this formula is beyond the scope of this class as it requires differential entropy. Interested students can find it in "Elements of Information Theory" by T. Cover and J. Thomas. 
-\section{Channel Coding Theorem}
-\begin{theorem}
-For any error probability \(\epsilon > 0\) and for any transmission rate \(R\) less than the channel capacity \(C\), there is an encoding and decoding scheme transmitting data at rate R whose error probability is less than \(\epsilon\), for a sufficiently large block length. Also, for any rate greater than the channel capacity, the probability of error at the receiver goes to \(0.5\) as the block length goes to infinity.
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.6\textwidth]{Figs/BAWGN_capacity.png}
+    \caption{Capacity of the BAWGNC (soft decisions) compared with the BSC obtained by hard decisions at the receiver, as a function of the SNR.}
+    \label{fig:bawgn_capacity}
+\end{figure}
+
+Figure~\ref{fig:bawgn_capacity} plots this capacity against the SNR. Since the input is binary, the capacity never exceeds \(1\) bit per channel use, and it approaches \(1\) as the noise vanishes. The figure also illustrates an important practical point. A simple receiver could make a \emph{hard decision} on each symbol, deciding \(\hat{x} = \mathrm{sign}(y)\), which turns the BAWGNC into a BSC with crossover probability \(p = Q(1/\sigma)\), where \(Q\) is the Gaussian tail function. The dashed curve shows the capacity \(1 - H(Q(1/\sigma))\) of that BSC. It is noticeably lower: by throwing away the reliability information in \(y\) (a value near \(0\) is much less trustworthy than a value near \(\pm 1\)), the receiver loses capacity. This is why modern decoders, such as the turbo and LDPC decoders we will study later, work with \emph{soft} information.
+
+\section{Channel Coding Theorem}\label{sec:coding_thm}
+We can now state Shannon's theorem precisely.
+\begin{theorem}[Noisy-channel coding theorem]\label{thm:coding}
+Consider a discrete memoryless channel with capacity \(C\).
+\begin{enumerate}
+    \item (Achievability) For any \(\epsilon > 0\) and any rate \(R < C\), for all sufficiently large block lengths \(n\) there exists a code of rate at least \(R\) whose block error probability is less than \(\epsilon\).
+    \item (Converse) For any rate \(R > C\), the block error probability of every code is bounded away from zero. In fact, by the strong converse, it tends to \(1\) as the block length goes to infinity.
+\end{enumerate}
 \end{theorem}
 
-\paragraph{Achievable Region}
-Graphs for BSC, BEC, and AWGN will be included here. 
+\paragraph{Achievable region.} For each channel, the theorem divides the possible rates into two regions: rates below capacity are achievable, and rates above capacity are not. Figure~\ref{fig:capacity_bsc_bec} shows this for the BSC and BEC as a function of the channel parameter \(p\), and Figure~\ref{fig:bawgn_capacity} shows it for the BAWGNC as a function of the SNR. In summary:
+\begin{center}
+\begin{tabular}{lcc}
+\hline
+Channel & Capacity & Optimal input \\
+\hline
+Noiseless binary & \(1\) & uniform \\
+BSC(\(p\)) & \(1-H(p)\) & uniform \\
+BEC(\(p\)) & \(1-p\) & uniform \\
+BAWGNC(\(\sigma\)) & \(-\int \Phi \log_2 \Phi\, dy - \frac{1}{2}\log_2(2\pi e\sigma^2)\) & uniform \\
+\hline
+\end{tabular}
+\end{center}
 
-BSC: 1- H(p)
-BEC: 1- p
-AWGN: 
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.6\textwidth]{Figs/capacity_bsc_bec.jpg}
+    \caption{Capacity of the BSC and the BEC as a function of \(p\). Rates in the shaded region below the BSC curve are achievable on the BSC; rates above it are not.}
+    \label{fig:capacity_bsc_bec}
+\end{figure}
 
-\subsection{A Sketch of the Proof of the Channel Capacity}
-The channel capacity theorem states that if and only if the code rate is below the Shannon's limit, reliable channel coding scheme is feasible.  
+Two features of the theorem are worth emphasizing. First, the threshold is sharp: just below capacity, arbitrarily reliable communication is possible; just above it, reliable communication is impossible. Second, the theorem is an \emph{existence} result. As we will see in the proof, it shows that good codes exist, but does not tell us how to construct them or how to decode them efficiently. Finding practical codes that approach capacity took nearly half a century and is the subject of much of the rest of this course.
 
-At the heart of the proof is the typical set idea: given transmitted codeword \(c\), what received typically resides inside a shell of a sphere.
+\section{A Sketch of the Proof for the BSC}\label{sec:proof}
+We now sketch the proof of Theorem~\ref{thm:coding} for the BSC with crossover probability \(p < \frac{1}{2}\), where \(C = 1 - H(p)\). (For \(p > \frac{1}{2}\), the receiver can flip every received bit, which turns the channel into a BSC with crossover probability \(1-p\).) Throughout, we write \(\mathcal{C}\) for the code, to avoid confusion with the capacity \(C\). The general case uses the same ideas, formalized through jointly typical sequences; see Cover and Thomas.
 
-\subsubsection{Typical set}
-Let us consider a transmitted codeword \(c\). The received message \(y\) will differ from \(c\) at \(pn\) positions with increasingly high probability; in fact, the probability that 
-\[Pr(|d(y, c) - pn| > \epsilon) < \exp( - \epsilon^3 /n) \]
-by Chernov's bound. That means for each transmitted codeword, the received vector is most likely with Hamming distance \(pn\) from the codeword, or we can say it resides in a shell around the codeword with radius \(pn\).  We call this is the typical set \(T_{p}(c)\) around codeword \(c\).
+Both directions rest on one geometric picture, which we already used for the Hamming bound: when a codeword is sent, the received word almost always lands in a thin shell of radius about \(pn\) around it. The converse shows that such shells, one per codeword, cannot fit into \(\{0,1\}^n\) if \(R > 1-H(p)\). Achievability shows that when \(R < 1-H(p)\), randomly placed codewords have shells that almost never collide.
 
-\subsubsection{If \(R > C\), then error probability is bounded away from \(0\)}
-Here, we are going to prove one direction of the channel capacity theorem: if the code rate \(R\) is above the channel capacity, then it is impossible to achieve arbitrarily small error probability for at least some of the transmitted codewords. 
+\subsection{Volume of Hamming Balls}
+We need an estimate for the size of Hamming balls and spheres. Let \(\mathrm{Vol}(n, r) = \sum_{j=0}^{r} \binom{n}{j}\) be the number of words within Hamming distance \(r\) of a fixed word.
 
-We actually can prove a stronger result. If the rate \(R\) is above the channel capacity, then the decoding error probability for some codeword has to be at least \(1/2\). 
+\begin{lemma}\label{lem:volume}
+For \(0 < q \leq \frac{1}{2}\) with \(qn\) an integer,
+\[\frac{1}{n+1}\, 2^{nH(q)} \leq \binom{n}{qn} \leq \mathrm{Vol}(n, qn) \leq 2^{nH(q)}.\]
+In particular, \(\frac{1}{n}\log_2 \binom{n}{qn} \to H(q)\) and \(\frac{1}{n}\log_2 \mathrm{Vol}(n, qn) \to H(q)\) as \(n \to \infty\).
+\end{lemma}
+\begin{proof}
+Consider the binomial expansion \(1 = (q + (1-q))^n = \sum_{j=0}^{n} \binom{n}{j} q^j (1-q)^{n-j}\).
 
-The basic idea is: if the decoding error probability for a codeword is less than \(\frac{1}{2}\), then for the typical received vector, at least half of them should be in the decoding sphere around the codeword. So the volume of this sphere has to be large. That means we cannot pack too many such spheres, or too many codewords, into the linear space of \(2^n\). That gives the limit of the code rate.    
+For the upper bound: since \(q \leq \frac{1}{2}\), the ratio \(q/(1-q) \leq 1\), so \(q^j(1-q)^{n-j}\) is non-increasing in \(j\). Keeping only the terms with \(j \leq qn\),
+\[1 \geq \sum_{j=0}^{qn} \binom{n}{j} q^j (1-q)^{n-j} \geq \mathrm{Vol}(n, qn)\, q^{qn}(1-q)^{(1-q)n} = \mathrm{Vol}(n, qn)\, 2^{-nH(q)}.\]
 
+For the lower bound: the expansion has \(n+1\) terms, and the largest of them is the one with \(j = qn\), the mode of the binomial distribution. So that term is at least \(\frac{1}{n+1}\), i.e. \(\binom{n}{qn} 2^{-nH(q)} \geq \frac{1}{n+1}\).
+\end{proof}
 
+This lemma gives a concrete interpretation of the binary entropy function: \(H(q)\) is the exponential growth rate of the volume of a Hamming ball of relative radius \(q\). It also explains why \(H(p)\) appears in the capacity of the BSC.
 
-For reliable communication, these shells around codewords should be decoded correctly for at least half of them to achieve error rate less than \(\frac{1}{2}\).  
+\subsection{Typical Set}\label{sec:typical}
+Suppose codeword \(c\) is sent over the BSC. The number of flipped bits, \(d(y, c)\), is a sum of \(n\) independent Bernoulli(\(p\)) random variables, with mean \(pn\). By the Chernoff--Hoeffding bound, for any \(\epsilon > 0\),
+\[\Pr\left(|d(y, c) - pn| > \epsilon n\right) \leq 2\exp( - 2\epsilon^2 n),\]
+and the one-sided probability \(\Pr(d(y,c) > (p+\epsilon)n)\) is at most \(\exp(-2\epsilon^2 n)\). So, with probability approaching \(1\), the received word lies in the shell
+\[T_{p,\epsilon}(c) = \{y : |d(y,c) - pn| \leq \epsilon n\},\]
+which we call the \emph{typical set} around \(c\). Moreover, all error patterns of the same weight are equally likely, so given that \(d(y,c) = w\), the received word is \emph{uniformly} distributed over the sphere of radius \(w\) around \(c\), which contains \(\binom{n}{w}\) words.
 
+\subsection{Converse: If \(R > C\), the Error Probability Is Bounded Away From \(0\)}
+We prove a strong form of the converse: if \(R > 1-H(p)\), then for all large \(n\), \emph{every} code of rate \(R\) has some codeword whose decoding error probability exceeds \(\frac{1}{2}\).
 
-Let us first estimate the volume of each of these spheres. We need the Stirling's formula to approximate the factorials in the binomial expansion:  
-\[n! = \sqrt{2\pi n} (\frac{n}{e})^n (1 + o(n)).\]
+\paragraph{Idea.} Each codeword \(c\) has a decoding region \(D(c)\): the set of received words that the decoder maps to \(c\). The decoding regions of different codewords are disjoint. For \(c\) to be decoded correctly with probability at least \(\frac{1}{2}\), its region must cover a good part of its typical shell, so it must be large, about \(2^{nH(p)}\) words. But the \(2^k\) disjoint regions must all fit into the \(2^n\) words of \(\{0,1\}^n\), which limits the number of codewords.
 
-Since the sphere's volume is lower bounded by the half of the shell of distance \(pn\), we have
+\paragraph{Each decoding region must be large.} Fix \(\epsilon > 0\) small enough that \(p + \epsilon \leq \frac{1}{2}\). By Lemma~\ref{lem:volume} and the continuity of \(H\), for every typical weight \(w\) with \(|w - pn| \leq \epsilon n\), we have \(\binom{n}{w} \geq 2^{n(H(p) - \epsilon')}\) for large \(n\), where \(\epsilon' \to 0\) as \(\epsilon \to 0\). Split the probability of correct decoding according to the number of flips \(w\):
 \begin{align*}
-V_0 &\geq \frac{1}{2} \binom{n}{pn} \\
-    &= p^{-pn}(1-p)^{-(1-p)n} (1 + o(n)) \\
-    &= 2^{H(p)n - o(n)}
+\Pr(\text{correct} \mid c) &= \sum_{w} \Pr(d(y,c) = w) \cdot \frac{|D(c) \cap S_w(c)|}{\binom{n}{w}} \\
+&\leq \Pr(|d(y,c) - pn| > \epsilon n) + \sum_{w \text{ typical}} \Pr(d(y,c) = w) \cdot \frac{|D(c)|}{2^{n(H(p) - \epsilon')}} \\
+&\leq 2e^{-2\epsilon^2 n} + |D(c)|\, 2^{-n(H(p) - \epsilon')},
 \end{align*}
+where \(S_w(c)\) is the sphere of radius \(w\) around \(c\), and the first line uses the uniformity noted in Section~\ref{sec:typical}. So if \(\Pr(\text{correct} \mid c) \geq \frac{1}{2}\), then for large \(n\) (once \(2e^{-2\epsilon^2 n} \leq \frac{1}{4}\)),
+\[|D(c)| \geq \tfrac{1}{4}\, 2^{n(H(p) - \epsilon')}.\]
 
-This actually gives a physical interpretation of the entropy function: It represents the volume of the sphere around the codeword.  
-
-Now consider totally how many codewords we can pack there with the constraint that these correct decoding regions do not overlap. This can be easily bounded: 
+\paragraph{Packing the regions.} Suppose every codeword were decoded correctly with probability at least \(\frac{1}{2}\). Since the \(2^k\) regions are disjoint subsets of \(\{0,1\}^n\),
 \begin{align*}
-2^k V_0 &< 2^n \\
-2^k 2^{H(p)n -o(n)} &< 2^n \\
-k + H(p) n - o(n) &< n \\
-R = k/n &< 1-H(p) - \epsilon 
+2^k \cdot \tfrac{1}{4}\, 2^{n(H(p) - \epsilon')} &\leq 2^n \\
+k + n(H(p) - \epsilon') - 2 &\leq n \\
+R = k/n &\leq 1 - H(p) + \epsilon' + \tfrac{2}{n}.
 \end{align*}
-for any arbitrarily small $\epsilon$. In other words, if the code rate is above the Shannon's limit, then reliable communication is infeasible. 
+Since \(\epsilon'\) can be made arbitrarily small, this contradicts \(R > 1 - H(p)\) for large \(n\). Hence some codeword must have error probability greater than \(\frac{1}{2}\). In other words, above the Shannon limit, reliable communication is impossible, no matter which code and decoder we use.
 
-\subsubsection{Typical Pairs Decoding}
-Our decoding algorithm will be: if there is a unique codeword \(c\) within distance \((p + \delta)n\) from
-the received word \(y\), decode to \(c\). Otherwise, give up. We will show that this works with high
-probability.
+This argument is the same sphere-packing reasoning as the Hamming bound from our lecture on block linear codes, with one important difference: the Hamming bound packs balls of radius \(t\) and guarantees correction of \emph{every} error pattern of weight up to \(t\), while here we only need to correct the \emph{typical} error patterns, of weight about \(pn\).
 
-\subsubsection{If \(R < C\), then error probability goes to \(0\) as \(n\) goes large}
+\subsection{Achievability: If \(R < C\), the Error Probability Goes to \(0\)}
+To show that good codes exist, Shannon used a strikingly simple idea: choose the code at random, and show that on average it works well.
 
-If \(R < C\), then the total number of codewords is \(|C| = 2^{Rn} \leq 2^{(1-H(p)-\epsilon)n}.\)
+\paragraph{Random code.} Each of the \(2^k\) codewords is chosen independently and uniformly at random from \(\{0,1\}^n\).
 
-What is the probability that our received word is not decoded properly? First, with probability
-\(1− \epsilon\), the received word is close enough to the original codeword \(c\). In this case, the only reason
-for the decoding to fail is if another codeword is also within \((p + \delta)n\) distance from the received
-codeword. 
+\paragraph{Decoding rule.} Fix a small \(\delta > 0\) with \(p + \delta < \frac{1}{2}\). Given the received word \(y\), if there is a unique codeword within distance \((p + \delta)n\) of \(y\), decode to it. Otherwise, declare an error.
 
-We will compute the probability that our received word is decoded to a specific other
-codeword \(c^{'}\). Recall that the codewords were chosen at random. Thus, the probability that a
-specific codeword \(c\) is within distance \((p + \delta)n\) from our received word \(y\) is exactly the probability
-that a random binary string is within distance this of \(c^{'}\). This is just the ratio of the number of
-words close to \(c^{'}\) to the total number of words, or approximately
-\[\frac{2^{n H(p)}}{2^n} = 2^{-(1-H(p))n}.\]
+\paragraph{Choice of parameters.} Suppose \(R < 1 - H(p)\). Since \(H\) is continuous, we can choose \(\delta > 0\) and \(\epsilon > 0\) small enough that \(R \leq 1 - H(p+\delta) - \epsilon\). The number of codewords is then \(|\mathcal{C}| = 2^{Rn} \leq 2^{(1-H(p+\delta)-\epsilon)n}\).
 
-Then by the union bound, the error probability that the typical pairs decoding makes an error is upper bounded by:
+\paragraph{Analysis.} Suppose codeword \(c\) is sent and \(y\) is received. The decoder can fail in only two ways:
+\begin{enumerate}
+    \item \emph{Too many flips}: \(d(y, c) > (p+\delta)n\). By Section~\ref{sec:typical}, this has probability at most \(e^{-2\delta^2 n}\).
+    \item \emph{A collision}: some other codeword \(c'\) is also within distance \((p+\delta)n\) of \(y\). Because the codewords were chosen independently and uniformly, \(c'\) is uniform on \(\{0,1\}^n\) and independent of \(c\) and of the channel noise. So the probability that it lands in the Hamming ball of radius \((p+\delta)n\) around \(y\) is the fraction of all words in that ball, which by Lemma~\ref{lem:volume} is at most
+    \[\frac{\mathrm{Vol}(n, (p+\delta)n)}{2^n} \leq 2^{-(1-H(p+\delta))n}.\]
+\end{enumerate}
+By the union bound over the at most \(|\mathcal{C}|\) other codewords, the error probability, averaged over the random choice of code, satisfies
 \begin{align*}
-    P_{E} \leq |C| 2^{-(1-H(p))n} < 2^{-\epsilon n} 
+    P_{E} \leq e^{-2\delta^2 n} + |\mathcal{C}|\, 2^{-(1-H(p+\delta))n} \leq e^{-2\delta^2 n} + 2^{-\epsilon n},
 \end{align*}
 which goes to zero as \(n\) goes to infinity.
+
+\paragraph{From a random code to a good code.} Since this bound holds on average over the random choice of code, at least one fixed code must do at least as well, i.e. its error probability, averaged over the messages, is at most \(e^{-2\delta^2 n} + 2^{-\epsilon n}\). To guarantee a small error probability for \emph{every} message, we can remove the worst half of the codewords. At most half of them can have error probability more than twice the average, so the remaining codewords all have error probability at most \(2(e^{-2\delta^2 n} + 2^{-\epsilon n})\), and removing half the codewords lowers the rate by only \(1/n\).
+
+\subsection{Remarks}
+\begin{itemize}
+    \item \emph{Random linear codes suffice.} The same argument works if we choose a random generator matrix \(G\) instead of random codewords. For any two distinct messages \(m \neq m'\), the difference \(c_{m'} - c_m = G(m' - m)\) is uniformly distributed over \(\{0,1\}^n\), and this is all the collision analysis needs. So linear codes, with their efficient encoding, can achieve the capacity of the BSC.
+    \item \emph{Decoding is the bottleneck.} The decoder in the proof compares \(y\) with all \(2^{Rn}\) codewords, which takes exponential time. As we saw in the lecture on block linear codes, even syndrome decoding needs a table of size \(2^{n-k}\). The central challenge of practical coding theory is to find codes with enough structure to be decoded efficiently while still operating close to capacity. Turbo codes, LDPC codes, and polar codes, which we will study later in this course, meet this challenge.
+\end{itemize}
+
+\section{Summary}
+\begin{itemize}
+    \item Entropy \(H(X)\) measures the uncertainty in \(X\); conditional entropy \(H(X|Y)\) measures what remains after observing \(Y\); and mutual information \(I(X;Y) = H(X) - H(X|Y)\) measures what \(Y\) reveals about \(X\).
+    \item The capacity of a memoryless channel is \(C = \max_{p(x)} I(X;Y)\). For the binary channels in this lecture, the uniform input is optimal, and \(C_{\mathrm{BSC}} = 1 - H(p)\), \(C_{\mathrm{BEC}} = 1 - p\).
+    \item Shannon's theorem: reliable communication is possible at every rate below capacity and impossible at every rate above it.
+    \item The proof for the BSC is a sphere-packing argument. Typical error patterns fill a shell of about \(2^{nH(p)}\) words around each codeword; at most \(2^{n(1-H(p))}\) such shells fit in \(\{0,1\}^n\), and random codes come close to this limit.
+    \item The proof does not give practical codes. Designing codes that approach capacity with efficient decoding is the goal of the rest of the classical part of this course.
+\end{itemize}

@@ -109,3 +109,62 @@ Let us now illustrate the Steane code in this new formalization.
 
 
 \section{The Error Operator On Codewords}
+
+\section{qLDPC Decoder - BPOSD}
+
+Decoding these q-LDPC via standard classical routines faces a unique challenge. Unlike classical linear codes, quantum parity-check matrices exhibit a high density of short, degenerate loops—a fundamental consequence of the stabilizer commutation requirement:
+\begin{equation}
+    H_X H_Z^T = 0
+\end{equation}
+These structural loops induce destructive positive feedback cycles when using standard soft-decision \textbf{Belief Propagation (BP)}, causing the message-passing heuristics to stall or fail to converge. 
+
+To overcome this limitation, the \textbf{Belief Propagation with Ordered Statistics Decoding (BP-OSD)} framework introduces a two-phase architecture. It treats the non-converged soft output of the BP phase as a prioritization metric to guide a hard-decision, classical algebraic solver.
+
+\subsection{The Two-Phase Decoding Protocol}
+
+\subsubsection{Phase 1: Belief Propagation (Soft-Decision)}
+The decoder initializes by processing the observed syndrome vector $\mathbf{s}$ over the bipartite Tanner graph. For a physical qubit $i$, the decoder runs a fixed number of message-passing iterations to compute its posterior \textbf{Log-Likelihood Ratio (LLR)}, defined as:
+\begin{equation}
+    \Lambda_i = \ln \left( \frac{P(e_i = 0 \mid \mathbf{s})}{P(e_i = 1 \mid \mathbf{s})} \right)
+\end{equation}
+where $\Lambda_i \to -\infty$ signifies absolute confidence that an error has occurred ($e_i = 1$), while $\Lambda_i \to +\infty$ indicates absolute confidence that the qubit is clean ($e_i = 0$).
+
+\subsubsection{Phase 2: Ordered Statistics Decoding (Algebraic Clean-up)}
+When the BP phase fails to converge to a valid error configuration satisfying $H\mathbf{e} = \mathbf{s}$, the OSD post-processing phase is initiated through the following systematic sequence:
+
+\begin{enumerate}
+    \item \textbf{Statistical Sorting:} The columns of the parity-check matrix $H$ are permuted based on the error probabilities derived from the BP phase. Qubits are sorted from the \textit{highest probability of being an error} to the \textit{lowest probability of being an error}. This maps the LLR values directly from most negative to most positive, positioning highly uncertain bits ($\Lambda_i \to 0$) and definite errors ($\Lambda_i \to -\infty$) to the far left.
+    
+    \item \textbf{Most Reliable Basis (MRB) Construction:} Gaussian elimination (row reduction) is executed on the reordered matrix $H$ from left to right. The algorithm selects the first $K = \text{rank}(H)$ linearly independent columns to form the \textbf{Most Reliable Basis (MRB)}, denoted as $H_{\text{MRB}}$.
+    
+    \item \textbf{Hard-Decision Hardening:} Qubits corresponding to columns outside the MRB basis (the far-right columns) are frozen to hard binary decisions based on their BP confidence. Confident clean bits are assigned a fixed value of $0$, reducing the underdetermined matrix to a square, fully-determined linear system.
+    
+    \item \textbf{Algebraic Solve ($\text{OSD}_0$):} The remaining unknown error configurations within the MRB are computed directly via matrix inversion or forward-substitution:
+    \begin{equation}
+        H_{\text{MRB}} \, \mathbf{e}_{\text{MRB}} = \mathbf{s}_{\text{modified}}
+    \end{equation}
+    This ensures that the final configuration perfectly satisfies the physical syndrome constraints. Higher-order variants ($\text{OSD}_w$) systematically flip small test combinations of up to $w$ bits within the MRB to minimize total physical weight.
+\end{enumerate}
+
+\subsection{Computational Bottleneck}
+While BP-OSD achieves near-optimal decoding accuracy and preserves high fault-tolerance thresholds, its primary limitation lies in its classical hardware latency. Identifying the MRB and solving the determined system requires executing Gaussian elimination over a scaling number of physical qubits $N$. This introduces a strict cubic computational complexity overhead:
+\begin{equation}
+    \mathcal{O}(N^3)
+\end{equation}
+As quantum processors scale to thousands of physical qubits, this cubic complexity presents a critical engineering bottleneck for real-time, sub-millisecond quantum error correction loops.
+
+
+\section{qLDPC Decoder - BPOSD}
+Real-time fault-tolerant quantum computing requires classical processing pipelines capable of decoding quantum error syndromes within the strict coherence time windows of physical qubits. While quantum Low-Density Parity-Check (qLDPC) codes significantly reduce physical qubit overhead compared to surface codes, they present a formidable decoding challenge. The fundamental requirement that quantum stabilizers commute ($H_X H_Z^T = 0$) mathematically guarantees an abundance of short, degenerate loops within the code's bipartite Tanner graph. These topological loops cause standard soft-decision Belief Propagation (BP) heuristics to fail due to infinite message-passing feedback cycles.
+
+To resolve BP convergence failures, modern architectures rely on the Belief Propagation with Ordered Statistics Decoding (BP-OSD) framework as a post-processing cleanup routine. Although BP-OSD achieves near-optimal decoding thresholds by executing Gaussian elimination on the most reliable columns of the parity-check matrix, it suffers from a prohibitive cubic computational complexity:
+\begin{equation}
+    \mathcal{O}(N^3)
+\end{equation}
+where $N$ denotes the number of physical qubits. As quantum processors scale toward thousands of physical qubits, this cubic scaling wall creates a critical hardware latency bottleneck, preventing real-time, sub-millisecond syndrome extraction.
+
+To circumvent the scaling limitations of matrix-inversion decoders, recent breakthroughs introduce the \textbf{Quantum Beam Search Decoder}. Borrowing principles from heuristic path-exploration in classical sequence-to-sequence natural language processing, the quantum beam search decoder transforms quantum error correction into a sequential tree-search problem. Guided by log-likelihood ratios (LLRs) generated dynamically via a localized, warm-started BP routine, the algorithm tracks a parallel ensemble of hypotheses bounded by a fixed beam width ($B$). By iteratively pinning the state of highly uncertain qubits and pruning low-probability trajectories, the algorithm suppresses the destructive loops of the Tanner graph without costly global matrix updates. Crucially, this approach reduces the classical decoding complexity to a linear relationship:
+\begin{equation}
+    \mathcal{O}(B \cdot N)
+\end{equation}
+Consequently, the quantum beam search decoder offers a viable pathway for executing real-time, low-latency fault tolerance on commodity classical hardware as quantum processors scale into the regime of large-scale utility.
