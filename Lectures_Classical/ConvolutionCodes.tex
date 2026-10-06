@@ -15,316 +15,336 @@
 
 \section{Introduction}
 
-Voyager 1, which was launched in 1977, has left the solar system. It has been transmitting scientific data back to earch until December 2023.  The 20W transmitter on the Voyager 1 had to cover tens of billions of kilometers for this transmission, thus the best known codes at the time was deployed. The codes used are convolutional codes, and the decodign algorithm used is known as Viterbi decoding. 
+Voyager 1, launched in 1977, is the most distant human-made object. It crossed into interstellar space in 2012 and, almost fifty years after launch, it is still sending scientific data back to Earth, from more than 15 billion miles away. Its transmitter has a power of only about 20 W. Getting any information across such distances requires the best error correction codes available, and the code chosen for Voyager was a \emph{convolutional code}, decoded on the ground with the \emph{Viterbi algorithm}: a rate-\(1/2\) code with constraint length \(K = 7\), which later became an industry standard.
 
-Later, convolutional codes were again used in the Cassini probe, this time the destiny was Saturn, launched in 1997.  Two convolutional codes, rate one-half and rate one-sixth, are used. To achieve low bit error rate, the convolutional codes are used as an inner code and concatenated with a Reed-Solomon outer code. 
-The convolutional codes achieve a bit error rate (BER) of 0.5\%.  And then the outer Reed-Solomon corrects this small error rate. The overall BER of this concatenated code is below \(10^{-6}\).
+Convolutional codes flew again on the Cassini mission to Saturn, launched in 1997. Cassini carried two convolutional codes, one of rate \(1/2\) (with \(K = 7\)) and a more powerful one of rate \(1/6\) (with \(K = 15\)). To reach very low error rates, the convolutional code was used as an \emph{inner} code, concatenated with an \emph{outer} Reed--Solomon code, as shown below. The inner Viterbi decoder was designed to deliver a bit error rate (BER) of about \(0.5\%\), and the outer Reed--Solomon decoder then cleaned up these remaining errors, bringing the overall error rate below \(10^{-6}\).
+\begin{center}
+\small
+data \(\to\) \fbox{RS encoder} \(\to\) \fbox{interleaver} \(\to\) \fbox{convolutional encoder} \(\to\) channel \\[4pt]
+channel \(\to\) \fbox{Viterbi decoder} \(\to\) \fbox{de-interleaver} \(\to\) \fbox{RS decoder} \(\to\) data
+\end{center}
 
-In this lecture, we will explain Convolutional codes, and the three different views on convolutional codes: the shift-register view, the state space view and the trellis view. These different views are all useful in understanding convolutional codes. 
+Beyond deep space, convolutional codes have been used in satellite communication, in the GSM and LTE cellular standards, and in Wi-Fi. They are also the building blocks of turbo codes, which we will study later in this course.
 
-In next lecture, we will cover how to decdode convolutional codes.
+In this lecture, we introduce convolutional codes through a running example and describe them from several complementary points of view: the shift-register view, the generator polynomial view, the state-space view, and the trellis view. Each view is useful for a different purpose: the shift register for implementation, the polynomials for algebra, the state machine for analysis, and the trellis for decoding. We then define the free distance, which measures the error-correcting power of a convolutional code, and introduce recursive systematic convolutional codes. In the next lecture, we will see how to decode convolutional codes with the Viterbi algorithm.
 
 \section{An Example Convolutional Code}
-Many block codes used the idea of parity bits, where bits are inserted to create parity checks. Convolutional codes also insert parity bits. But instead of to fixed block of information bits, it insert parity bits to a stream of bits. 
+Many block codes are built from parity bits: we append bits that satisfy certain parity checks. Convolutional codes also generate parity bits, but instead of computing them for a fixed block of information bits, they compute them continuously over a \emph{stream} of bits.
 
-
-We describe convolutional codes by giving the
-equations for the parity bits.  Here is a simple convolutional code. (Even though this is a simple example, it captures all essential elements of any convolutional codes and we will use it to illustrate all important ideas.)
-Assume information bits are \(x_1, x_2, \ldots\), we are going to generate parity bits in a streaming way: At time \(n \geq 0\), 
+We describe a convolutional code by giving the equations for its parity bits. Here is a simple example. (Even though it is simple, it captures all the essential elements of a convolutional code, and we will use it to illustrate all the important ideas.) Let the information bits be \(x[0], x[1], x[2], \ldots\). At each time \(n \geq 0\), the encoder produces two parity bits:
 \begin{align*}
-p_0[n] &= x[n] + x[n-1] + x[n-2] \\
-p_1[n] &= x[n] + x[n-2],    
+p_0[n] &= x[n] + x[n-1] + x[n-2], \\
+p_1[n] &= x[n] + x[n-2],
 \end{align*}
-here we assume \(x[-1], x[-2]\) are initialized as \(0\). So there are two streams of parity bits generated. 
+where all additions are modulo \(2\), and we assume that \(x[-1] = x[-2] = 0\). So the encoder produces two streams of parity bits.
 
-Let us see how we encode the following message: \(101011\). We assume the right most bit comes first, or the beginning of the stream, to be consistent with the convention we used in cyclic codes. So we have \(x[0] = 1, x[1] = 1, x[2] = 0, \) etc.  This is how we are thinking of the message as a stream.
+Let us encode the message \(101011\). We assume that the rightmost bit comes first, i.e. it is the beginning of the stream, to be consistent with the convention we used for cyclic codes. So \(x[0] = 1\), \(x[1] = 1\), \(x[2] = 0\), \(x[3] = 1\), \(x[4] = 0\), and \(x[5] = 1\). At each time \(n\), the encoder looks at the three bits \(x[n]\,x[n-1]\,x[n-2]\), written newest first:
+\begin{itemize}
+    \item At \(n=0\), the bits in use are \(x[0]x[-1]x[-2] = 100\), so \(p_0[0] = 1 + 0 + 0 = 1\) and \(p_1[0] = 1 + 0 = 1\).
+    \item At \(n=1\), the bits in use are \(x[1]x[0]x[-1]=110\), so \(p_0[1] = 1 + 1 + 0 = 0\) and \(p_1[1] = 1 + 0 = 1\).
+    \item At \(n=2\), the bits in use are \(x[2]x[1]x[0]=011\), so \(p_0[2] = 0 + 1 + 1 = 0\) and \(p_1[2] = 0 + 1 = 1\).
+\end{itemize}
+Continuing in the same way gives the complete encoding:
+\begin{center}
+\begin{tabular}{c|cccccccc}
+\hline
+\(n\) & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 \\
+\(x[n]\) & 1 & 1 & 0 & 1 & 0 & 1 & \emph{0} & \emph{0} \\
+\hline
+\(p_0[n]\) & 1 & 0 & 0 & 0 & 1 & 0 & 1 & 1 \\
+\(p_1[n]\) & 1 & 1 & 1 & 0 & 0 & 0 & 0 & 1 \\
+\hline
+\end{tabular}
+\end{center}
+The two extra zeros at \(n = 6, 7\) (in italics) are \emph{tail bits}, whose role we explain in Section~\ref{sec:conv_trellis}.
 
-We further assume \(x[-1] = x[-2] = 0\) so that the equations above make sense at the initial state. At time \(n=0\), \(x[0]x[-1]x[-2] = 001\).  
+We usually transmit only the parity bits, not the message bits themselves. With two parity streams, we interleave them, sending \(p_0[0], p_1[0], p_0[1], p_1[1], p_0[2], p_1[2], \ldots\). So the codeword for our message is
+\[11\ \ 01\ \ 01\ \ 00\ \ 10\ \ 00\ \ 10\ \ 11.\]
 
-So we have \(p_0[0] = 1 + 0 + 0 = 1\), and \(p_1[0] = 1 + 0 = 1\).
+Each information bit produces two coded bits, so the rate of this code is \(\frac{1}{2}\). (The tail bits reduce the rate slightly; we return to this in Section~\ref{sec:conv_trellis}.)
 
-At \(n=1\), the used message bits are \(x[1]x[0]x[-1]=110\) and our parity bits generated are \(p_0[1] = 1 + 1 + 0 = 0\) and \(p_1[1] = 1 + 0 = 1\).
+The parity bits are computed by sliding a window over the message bits. The width of this window, in bits, is called the \emph{constraint length} of the code, denoted \(K\). In our example, \(K = 3\). The encoder must remember the previous \(K-1\) bits, called the \emph{memory} of the code.
 
-At \(n=2\), the used message bits are \(x[2]x[1]x[0]=011\) and our parity bits generated are 
-
-\(p_0[2] = 0 + 1 + 1 = 0\) and \(p_1[2] = 0 + 1 = 1\).
-
-For transmitting, we usually send the parity sequences, excluding the message.  When we have multiple parity equations, we interleave the bits of the parity sequences.  Therefore, the codeword is the interleaved version of the parity bits \( \cdots, p_0[2], p_1[2], p_0[1], p_1[1], p_0[0], p_1[0]\). For this example code, a running \(k\) information bits will generate \(2k\) coded bits, the code rate of this convolutional codes is \(\frac{1}{2}.\) (Later we will see there is a minor correction to that.)
-
-
-So we are generating the parity bits by using a slide window over the message bits. The width of this window (in bits) is called the code's constraint. We denote \(K\) as the constraint. In this example, \(K=3.\)
-
-
-In the above example, each message bit is "spread across" \(K\) elements of each parity
-sequence, so the parity sequences are better protection against bit errors than the message sequence itself.
-
-This is the property of a non-recursive convolutional code. 
-
+Each message bit enters the parity computations at \(K\) consecutive times, in each of the two parity streams. For example, \(x[0]\) affects \(p_0[0], p_1[0], p_0[1], p_1[1], p_0[2], p_1[2]\). To see the effect concretely, encode a single \(1\) followed by zeros: the output is \(11\ 10\ 11\ 00\ 00 \cdots\). So flipping one message bit changes \(5\) coded bits. This spreading of every message bit over many coded bits is what gives the code its error-correcting power: even if some of the coded bits that depend on a message bit are corrupted, the others still carry information about it. We will make this precise with the notion of free distance in Section~\ref{sec:dfree}.
 
 \section{Difference Between Convolutional Codes And Block Codes}
-The most obvious differences between convolutional codes and linear
-block codes are:
+The main differences between convolutional codes and the linear block codes we have studied are:
 \begin{enumerate}
-    \item Convolutional codes act on message bits streaming into the encoder. 
-    \item Parity bits are generated over a sliding window of message bits, ie it is localized.
-    \item We transmit \textbf{only} parity bits, excluding data bits.
+    \item Convolutional codes operate on a stream of message bits, of arbitrary length, instead of on fixed-size blocks.
+    \item Each parity bit depends only on a sliding window of \(K\) consecutive message bits, so the encoding is \emph{local} in time.
+    \item The encoder has \emph{memory}: the output at time \(n\) depends on the current input and on the previous \(K-1\) inputs. A block encoder, by contrast, encodes each block independently of all the others.
+    \item In the basic form of the code, we transmit \textbf{only} the parity bits, not the message bits. Such a code is \emph{non-systematic}. (In Section~\ref{sec:rsc} we will see systematic convolutional codes as well.)
+    \item Optimal (maximum likelihood) decoding is practical. For a general block code, ML decoding requires comparing the received word with exponentially many codewords. For a convolutional code, the memory has a simple structure, and the Viterbi algorithm of the next lecture performs ML decoding with effort that grows only linearly with the message length.
 \end{enumerate}
-   
-This means that convolutional codes are non-systematic codes.
 
-The way we will be able to get error correction properties out of convolutional codes is by having each message bit affect many different parity bits (in some sense: a particular message bit will be involved in many different parity equations).
+The rate of a convolutional code tells us how many coded bits are sent for each message bit. We will mostly discuss codes of rate \(1/r\), i.e. codes with \(r\) parity bits per message bit. Although the rate seems fixed by the structure of the encoder, other rates such as \(2/3\) or \(3/4\) can be obtained by \emph{puncturing}, i.e. deleting some of the parity bits according to a fixed pattern, as we will see in the next lecture.
 
-The code rate of these types of codes tells us how many parity bits are sent for each message bit.  We will be talking mostly about \(1/r\) codes (i.e., \(r\) parity bits per message bit). 
+\section{Representing Convolutional Codes}
+There are several ways to visualize and describe convolutional codes, and each makes different properties easy to see. Mastering all of them is essential for understanding convolutional codes.
 
-Although the code rate seems fixed for the convolution code structure, we can achieve different rates by puncturing. We will talk about that later. 
+\subsection{Shift-Register View}
+The first is the \emph{shift-register} view, which reflects how the encoder is implemented in hardware. Figure~\ref{fig:Conv_Register} shows it for our example.
 
-\section{Representing Convolution Codes}
-There are a lot of different ways to visualize/describe convolutional codes. Mastering all these different views is essential to understand convolutional codes. 
-
-\subsection{Shift-Register view}
-  The first is the "shift-register" view, which actually
-reflects how this coding process might be implemented in hardware.
-
-For the example we have above, here is the shift-register view:
-
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.6\textwidth]{Figs/Conv_Register.png}
-    \caption{Caption}
-    \label{fig:Conv_Register}
-\end{figure}
-Here \(x[n-1]\) and \(x[n-2]\) are held in two registers.  A new bit, \(x[n]\), arrives
-at the left.  The box computes the parity bits from the incoming bit
-\(x[n]\) and the \(2\) previous message bits.  At the end of the iteration,
-the saved message bits are shifted right by one, and the incoming bit
-moves into the left position.
-
-A simpler way to represent the shift register view is to directly use the register elements, denoted by \(D\). 
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.6\textwidth]{Figs/Conv_FIR.png}
-    \caption{Caption}
+    \includegraphics[width=0.55\textwidth]{Figs/Conv_Register_v2.png}
+    \caption{Shift-register view of the example code: \(p_0[n] = x[n] + x[n-1] + x[n-2]\) and \(p_1[n] = x[n] + x[n-2]\).}
     \label{fig:Conv_Register}
 \end{figure}
 
+The previous bits \(x[n-1]\) and \(x[n-2]\) are held in two registers. A new bit, \(x[n]\), arrives at the left. Each adder (\(\oplus\), addition modulo \(2\)) computes one parity bit from the incoming bit and the registers connected to it: the adder for \(p_0[n]\) is connected to \(x[n]\), \(x[n-1]\), and \(x[n-2]\), while the adder for \(p_1[n]\) skips \(x[n-1]\). At the end of each time step, the contents of the registers shift right by one position: \(x[n-1]\) moves into the second register, and the incoming bit \(x[n]\) moves into the first.
 
-At the start of encoding, we assume \(x[-1]\) and \(x[-2]\) contain zero. When we finish, we add \(K-1\) zeroes to the end of the code, to allow the
-registers to "settle", again at zero. For long block length, these resetting bits do not materially affect the code rate. 
+A more compact drawing labels each register simply as a delay element \(D\), which holds its input for one time step. This is the notation of digital filters, and it is shown in Figure~\ref{fig:Conv_FIR}.
 
-\subsection{Generator Polynomial or Transfer Function}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.45\textwidth]{Figs/Conv_FIR_v2.png}
+    \caption{The same encoder drawn with delay elements \(D\).}
+    \label{fig:Conv_FIR}
+\end{figure}
 
-Just like block codes, where a generator matrix is useful to describe a code, we also have generator nottaion to succinctly represent convolutional codes. In fact, we have a set of generators, where generator \(g_i\) is the generator for parity bit \(p_i\).
+At the start of encoding, the registers contain zeros. At the end, we feed in the \(K-1\) tail zeros mentioned above, which flush the message bits out of the registers and return them to zero.
 
-The generator basically shows which register contributes to the parity bit. For example, for parity stream \(p_0 = x[n] + x[n-1] + x[n-2]\), the generator polynomial \(g_0(D) = 1 + D + D^2\), or more simply \(g_0 = [111]\). For parity stream \(p_1 = x[n] + x[n-2]\), the generator is polynomial is \(g_1(D) = 1+ D^2\), or \([101]\). 
+\subsection{Generator Polynomials}
+For block codes, a generator matrix describes the code compactly. For convolutional codes, the analogous description is a set of \emph{generators}, one for each parity stream: generator \(g_i\) tells us which of the bits \(x[n], x[n-1], \ldots, x[n-K+1]\) are added together to form parity bit \(p_i[n]\).
 
-\paragraph{Transfer Function}
-If we apply a z-transform to the equation \(p_0 = x[n] + x[n-1] + x[n-2]\), we have 
-\[P = X(1+ D + D^2),\] so 
-\[G(D) = \frac{P}{X} = 1 + D + D^2.\] 
-This is know as the transfer function for the first parity bit of the convolutional code.  
+For the parity stream \(p_0[n] = x[n] + x[n-1] + x[n-2]\), the generator is \(g_0 = (1,1,1)\), or as a polynomial in the delay variable \(D\),
+\[g_0(D) = 1 + D + D^2,\]
+where the term \(D^j\) means ``the bit delayed by \(j\) steps,'' i.e. \(x[n-j]\). For the parity stream \(p_1[n] = x[n] + x[n-2]\), the generator is \(g_1 = (1,0,1)\), or \(g_1(D) = 1 + D^2\).
 
-The generator polynomial  relates directly to our shift-register view, as shown in  the diagram. 
+In the literature, generators are usually written in \emph{octal}: \(111 \to 7\) and \(101 \to 5\), so our example is the \((7,5)\) code. The leftmost bit is the coefficient of \(D^0\), i.e. the tap on the current input \(x[n]\). For longer generators, pad the binary string with zeros on the left to a multiple of \(3\) bits and convert each group of three to one octal digit. For instance, the widely used \(K = 7\) code on Voyager has generators \((171, 133)\) in octal: \(171 = 001\,111\,001\), i.e. \(1111001\), or \(g(D) = 1 + D + D^2 + D^3 + D^6\); and \(133 = 001\,011\,011\), i.e. \(1011011\), or \(g(D) = 1 + D^2 + D^3 + D^5 + D^6\). (Some textbooks read the bits in the opposite order. This gives the time-reversed code, which has exactly the same error-correcting properties.)
 
+\paragraph{Encoding as convolution.} In terms of the generator coefficients \(g_i[j]\), the coefficient of \(D^j\) in \(g_i(D)\), the encoder computes
+\[p_i[n] = \sum_{j=0}^{K-1} g_i[j]\, x[n-j] \pmod 2.\]
+This is exactly the \emph{convolution} of the message sequence with the generator sequence, written \(p_i = g_i \ast x\), which gives convolutional codes their name. Each parity stream is the output of a finite impulse response (FIR) filter over \(GF(2)\), with impulse response \(g_i\).
 
-With these generators, we can express the parity bits in a different way.  A convolutional code generates sequences of parity bits from
-sequences of message bits by a convolution operation:
+\paragraph{Encoding as polynomial multiplication.} Just as for linear filters, convolution becomes multiplication after a transform. Represent the message as a power series in the delay variable \(D\) (the \(D\)-transform, analogous to the \(z\)-transform with \(D = z^{-1}\)),
+\[X(D) = \sum_{n \geq 0} x[n] D^n,\]
+and similarly \(P_i(D) = \sum_n p_i[n] D^n\). Then
+\[P_i(D) = X(D)\, g_i(D),\]
+so the generator polynomial \(g_i(D) = P_i(D)/X(D)\) is the \emph{transfer function} from the message to the \(i\)th parity stream. For our message \(101011\), \(X(D) = 1 + D + D^3 + D^5\), and
+\begin{align*}
+P_0(D) &= (1 + D + D^3 + D^5)(1 + D + D^2) = 1 + D^4 + D^6 + D^7, \\
+P_1(D) &= (1 + D + D^3 + D^5)(1 + D^2) = 1 + D + D^2 + D^7,
+\end{align*}
+where we used \(D^j + D^j = 0\) modulo \(2\). These match the encoding table: \(p_0[n] = 1\) for \(n = 0, 4, 6, 7\), and \(p_1[n] = 1\) for \(n = 0, 1, 2, 7\). The tail bits appear automatically: the product has degree \(5 + 2 = 7\), so the output extends \(K - 1 = 2\) steps beyond the last message bit.
 
-   \[p_i[n] = \sum_{j=0}^{K-1} g_i[j] x[n-j] = g \circledast x\]
-where \(g_i[j]\) is the coefficient of term $D^j$,  
-$K$ is, again, the constraint length. Again, \(g_i(D)\) is the K-element generator polynomial for parity bit \(p_i\).
+Collecting the generators gives the \emph{generator matrix} of the code,
+\[G(D) = \big[\, g_0(D),\ g_1(D) \,\big] = \big[\, 1 + D + D^2,\ 1 + D^2 \,\big],\]
+and the encoder maps \(X(D) \mapsto \big[X(D) g_0(D),\ X(D) g_1(D)\big]\). This is the convolutional analog of \(c = xG\) for block codes.
 
-The convolutional nature of parity bits generation leads to the name convolutional code. 
+The connection with block codes can be made explicit. If we write the message as a row vector \(x = (x[0], x[1], x[2], \ldots)\) and the codeword as \(c = (p_0[0]p_1[0],\ p_0[1]p_1[1],\ \ldots)\), then \(c = xG\), where \(G\) is the (semi-infinite) binary matrix
+\[
+G = \begin{bmatrix}
+11 & 10 & 11 & 00 & 00 & \cdots \\
+00 & 11 & 10 & 11 & 00 & \cdots \\
+00 & 00 & 11 & 10 & 11 & \cdots \\
+\vdots & & & \ddots & & \ddots
+\end{bmatrix}.
+\]
+Row \(n\) is the response to a single \(1\) at time \(n\), i.e. \(11\ 10\ 11\), shifted right by \(n\) blocks. So a convolutional code is a linear code with a very structured, banded generator matrix, and every row has the same pattern. In particular, the sum of two codewords is the codeword of the sum of the two messages.
 
-Regarding the constraint length K, the larger K is,
-the more times a particular message bit is used when calculating parity bits.  This will lead to greater redundancy, and usually to better error correcting possibilities.
+\paragraph{Constraint length and code strength.} The larger the constraint length \(K\), the more parity bits each message bit influences, and the larger the distance between codewords can be. Larger \(K\) therefore usually gives better error correction. The price is decoding complexity, which, as we will see in the next lecture, grows as \(2^{K}\). (A note on terminology: some textbooks call \(K-1\), the number of registers, the constraint length or the memory \(m\). Always check which convention a reference uses.)
 
+\section{State-Space View}
+At any time, the future behavior of the encoder depends only on the current input and the \(K-1\) bits stored in its registers. These stored bits form the \emph{state} of the encoder. In our example, the state at time \(n\) is
+\[s_n = \big(x[n-1],\, x[n-2]\big),\]
+so there are \(2^{K-1} = 4\) states: \(00, 01, 10, 11\). The encoder is a finite-state machine: at each step, the input bit \(x[n]\) and the state \(s_n\) determine both the output \(p_0[n]p_1[n]\) and the next state \(s_{n+1} = \big(x[n],\, x[n-1]\big)\).
 
-
-\section{State Space View}
-In this section we briefly review the state-space approach to convolutional codes.
-
-An \((n, k, m)\) convolutional encoder is a linear sequential device which maps a sequence of $k$-dimensional information, of input blocks \(x_1, x_2, \cdots\), over the finite field \(GF(2)\),  into a sequence of $n$-dimensional output, of output blocks \(p_1, p_2, \cdots\)
-
-The encoder also passes through a sequence of internal $m$-dimensional state vectors, or simply states \(s_0 , s_1, \cdots\). The $j$th code block \(c_j\) is a linear function of the $j$th input block \(x_j\) and also of the $j$th state \(s_j\). This is precisely a linear system, defined over the finite field \(GF(2)\).
-
-
-The formal description of the encoder’s operation is  this: the initial state \(s_0\) is assumed to be the zero state and for \(j \geq 0\), the linear system evolves as:
+\paragraph{The encoder as a linear system.} More generally, an \((n, k, m)\) convolutional encoder maps a sequence of \(k\)-bit input blocks \(x_0, x_1, \ldots\) into a sequence of \(n\)-bit output blocks \(p_0, p_1, \ldots\), passing through a sequence of \(m\)-bit state vectors \(s_0, s_1, \ldots\), with \(s_0 = 0\). (Here \(n\) is the number of output bits per step, not the time index.) The output block \(p_j\) is a linear function of the input block \(x_j\) and the state \(s_j\), and so is the next state. This is precisely a linear system, defined over the finite field \(GF(2)\):
 \begin{align}
- s_{j+1} &= s_j A + x_j B  \label{eq:state} \\
- p_j &= s_j C + x_j D \label{eq:output}
+ s_{j+1} &= s_j A + x_j B,  \label{eq:state} \\
+ p_j &= s_j C + x_j D, \label{eq:output}
 \end{align}
-where the four matrices \(A, B, C,\) and \(D\) have entries from GF(2) and dimensions \(A:m \times m; B:k \times m; C:m \times n; D : k \times n\).
+where the matrices \(A, B, C, D\) have entries in \(GF(2)\) and dimensions \(A: m \times m\), \(B: k \times m\), \(C: m \times n\), and \(D: k \times n\). (The matrix \(D\) here is unrelated to the delay variable \(D\).) The code is the set of all output sequences the encoder can produce starting from \(s_0 = 0\).
 
-For the code defined in the example,  the linear system is:  
+Our example is a \((2, 1, 2)\) encoder: two output bits and one input bit per step, and \(m = K - 1 = 2\) bits of state. With the state written as the row vector \(s_j = (x[j-1],\ x[j-2])\), the system is
 \begin{align*}
 s_{j+1} &= s_j \begin{bmatrix}
-    1 & 0 \\
+    0 & 1 \\
     0 & 0
 \end{bmatrix} + x_j  \begin{bmatrix}
-    0 & 1 \\
-\end{bmatrix} \\
-p_{j} &= s_j \begin{bmatrix}
-    1 & 1 \\
     1 & 0
+\end{bmatrix}, \\
+p_{j} &= s_j \begin{bmatrix}
+    1 & 0 \\
+    1 & 1
 \end{bmatrix} + x_j  \begin{bmatrix}
-    1 & 1 \\
-\end{bmatrix} 
+    1 & 1
+\end{bmatrix}.
 \end{align*}
+The matrix \(A\) shifts \(x[j-1]\) into the second position and \(B\) puts the new bit into the first position. The columns of \(C\) and \(D\) give the parity equations: \(p_0[j] = x[j] + x[j-1] + x[j-2]\) and \(p_1[j] = x[j] + x[j-2]\).
 
-The \((n,k,m)\) convolutional code associated with such an encoder is then defined to be the set of all possible output sequences (or codewords) \(p_0, p_1, p_2, \cdots\) which can be produced form the encoder, starting with the initial state \(s_0 = 0\).
-
-Let us represent the example convolutional code using the state space view. 
-
+Let us trace our example message through the state machine. Each row shows the input bit, the state the encoder moves to, and the two parity bits produced.
 \begin{center}
-\begin{tabular}{|c|c|c|c|}
+\begin{tabular}{|c|c|c|c|c|}
 \hline
-\(x_n\) & \(s_n[0]s_n[1]\) & \(p_n[0]\) & \(p_n[1]\) \\ \hline
-1 & 10 & 1 & 1 \\ 
-1 & 11 & 0 & 1\\
-0 & 01 & 0 & 1\\
-1 & 10 & 0 & 0\\ 
-0 & 01 & 1 & 0\\
-0 & 00 & 1 & 0\\
+\(n\) & \(x[n]\) & next state \(x[n]x[n-1]\) & \(p_0[n]\) & \(p_1[n]\) \\ \hline
+0 & 1 & 10 & 1 & 1 \\
+1 & 1 & 11 & 0 & 1 \\
+2 & 0 & 01 & 0 & 1 \\
+3 & 1 & 10 & 0 & 0 \\
+4 & 0 & 01 & 1 & 0 \\
+5 & 1 & 10 & 0 & 0 \\
+6 & 0 & 01 & 1 & 0 \\
+7 & 0 & 00 & 1 & 1 \\
 \hline
 \end{tabular}
 \end{center}
 
-The state transition can be represented by a state machine graph, where transitions are shown by arrows pointing from the current state to the next state. On each transition, we associate the bits \(x/p_0p_1\) where \(x\) is the input bit and \(p_0p_1\) are the two parity bits.  
+The state transitions can be drawn as a \emph{state diagram}, shown in Figure~\ref{fig:ConvStateSpace}. Each arrow points from the current state to the next state and is labeled \(x/p_0p_1\), where \(x\) is the input bit and \(p_0p_1\) are the two parity bits. From every state, two arrows leave, one for each value of the input bit.
 
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.6\textwidth]{Figs/ConvStateSpace.png}
-    \caption{State Machine View of the Example Convolutional Codes}\label{fig:ConvStateSpace}
+    \includegraphics[width=0.45\textwidth]{Figs/ConvStateSpace_v2.png}
+    \caption{State diagram of the example convolutional code. Each transition is labeled \(x/p_0p_1\).}\label{fig:ConvStateSpace}
 \end{figure}
 
-\paragraph{Break here}
+\section{Trellis View}\label{sec:conv_trellis}
+The state diagram is compact, but it shows only where the encoder can go from its current state; it does not keep track of the states it has visited before. For that, we unroll the state diagram over time. The result is called a \emph{trellis}. In the trellis, every possible state appears once at every time step, and each transition of the state diagram becomes a branch from a state at time \(n\) to a state at time \(n+1\). As we will see in the next lecture, the trellis is the key to decoding.
 
-\section{Trellis View}
-The state machine alone is pretty useful.  But it only gives a visual
-representation of where we are at iteration n.  It would be nice to
-have a representation that kept track of what states we had been in
-previously.
+Figure~\ref{fig:ConvTrellis} shows the trellis of our example code. We label the branches only with the parity bits \(p_0p_1\). The input bit can be read off from the next state, because the first bit of the next state is the input bit \(x[n]\): branches into states \(10\) and \(11\) (the upper half of the trellis) correspond to \(x[n] = 1\), and branches into states \(00\) and \(01\) (the lower half) correspond to \(x[n] = 0\).
 
-(In fact, when we learn how to decode convolutional codes, it's going
-to be \textbf{very} nice)
-
-What we will do is, essentially, take the state machine and spread (unroll) it out over time.  This is called the "trellis" view.  With this view, we can trace a path over time; each path corresponds to a valid codeword. 
-
-In the trellis view, we will only label the transitions with the
-parity bits, instead of always including \(x[n]\).  We do this because of
-the two arrows exiting a transition, the upper arrow always
-corresponds to \(x[n]=1\), and the lower arrow always corresponds to
-\(x[n]=0\).
-
-Figure~\ref{fig:ConvTrellis} shows the trellis structure for our example convolutional codes. 
-\begin{figure}[h]
+\begin{figure}[htbp]
     \centering
-\includegraphics[width=0.6\textwidth]{Figs/ConvTrellis.png}
-    \caption{State Machine View of the Example Convolutional Codes}\label{fig:ConvTrellis}
+\includegraphics[width=0.55\textwidth]{Figs/ConvTrellis.png}
+    \caption{Trellis of the example convolutional code. Branches are labeled with the parity bits \(p_0p_1\).}\label{fig:ConvTrellis}
 \end{figure}
 
+Encoding is now easy to describe: start at state \(00\); for each message bit, follow the corresponding branch and send its label \(p_0p_1\). Our example message \(101011\) followed by two tail zeros traces the path
+\[00 \to 10 \to 11 \to 01 \to 10 \to 01 \to 10 \to 01 \to 00,\]
+and the branch labels along the path form the codeword \(11\ 01\ 01\ 00\ 10\ 00\ 10\ 11\), as before.
 
-Our encoding procedure now can be described straightforward:  Beginning at the starting state,
-for each message bit, make the appropriate state transition, and send \(p_0p_1\).  Then end the message with \(K-1\) zeros, to ensure return to the
-starting state.
+Every path through the trellis that starts in state \(00\) corresponds to a codeword, and every codeword corresponds to such a path. The message bits can be read off from the states along the path, and the codeword bits from the labels of its branches. A message of \(L\) bits has \(2^L\) possible paths, far too many to examine one by one. The trellis, however, has only \(2^{K-1}\) states at each time, and many paths pass through the same state. The Viterbi algorithm exploits exactly this.
 
-Any path through the trellis corresponds to a code word.  We could
-also consider the subset of paths that start in the zero state and end
-at time step \(N\) in the zero state these would generate codewords of
-length N. The original message bits can be read off by noting
-whether the path at each stage takes the upper branch (bit \(0\)) or lower
-branch (bit \(1\)). And the codeword bits can be read off from the labels
-on the traversed path.
+\paragraph{Termination.} The \(K-1\) tail zeros drive the encoder back to state \(00\). Then every codeword is a path that starts \emph{and ends} in state \(00\), which, as we will see, makes decoding more reliable at the end of the message. The cost is a small loss in rate: a message of \(L\) bits is encoded into \(2(L + K - 1)\) coded bits, so the actual rate is
+\[R = \frac{L}{2(L + K - 1)},\]
+slightly less than \(\frac{1}{2}\). (For a rate-\(1/r\) code, replace \(2\) by \(r\).) For our 6-bit example, \(R = 6/16\), but for \(L = 1000\) the loss is negligible.
 
-Let us show how we encode the example message bits \(
-101011\). This should be a path along the states from six steps. In reality, we might need to terminate the message bits using \(00\) so that the state returns to the all zero state. 
+\paragraph{State numbering.} Since the states are binary strings, we can interpret them as binary numbers: \(00, 01, 10, 11\) become \(0, 1, 2, 3\). This numbering is convenient in software and hardware implementations.
 
-This termination loses a bit information bit, but is not important. 
+\section{Free Distance of Convolutional Codes}\label{sec:dfree}
+As noted above, a convolutional code is linear: the parity bits are linear functions of the message bits, so the sum of two codewords is again a codeword. As for linear block codes, it follows that the distance between two codewords \(c\) and \(c'\) equals the weight of the codeword \(c + c'\). So, to find the minimum distance between codewords, it is enough to find the minimum weight of a nonzero codeword.
 
-Because the states are binary strings, we can  interpret them as decimal numbers, 
-  "00, 01, 10, 11" as \(0,1, 2, 3\). Such representation is useful in implementation.
+In the trellis, a nonzero codeword is a path that leaves the all-zero state, wanders through the other states, and eventually returns to the all-zero state. (Once it is back in state \(00\) with zero input, it produces only zeros.) This motivates the following definition.
 
-\section{Free Distance of Convolution Codes}
+\begin{definition}
+The \emph{free distance} \(d_{free}\) of a convolutional code is the minimum Hamming weight of the output along any path that leaves state \(0\) and later returns to state \(0\).
+\end{definition}
 
-The parity stream forms a linear code (the parity bits are linear functions of the data bits).
-
-The fact that parity bits are linear functions of the data bits is essentially saying that \(c=Gx\), which establishes the linearity of the code.
-
- In view of the convolution expression for the parity bits, it follows that the sum of two
-  parity streams is a parity stream (the stream corresponding to the sum of the two data words).
-
-The smallest-weight nonzero codeword has a weight that, locally in time, plays a role analogous to \(d\) (the minimum Hamming distance). It's called the free distance of the convolutional code; we'll denote
-it \(d_{free}\).
-
-Specifically, the free distance \(d_{free}\) of a convolutional code is the minimal Hamming weight difference between the all-zeroes output and an output generated from a path starting at  all zero state and ending at all zero state. The correcting capability \(t\) of a convolutional code is the number of errors that can be corrected by the code. It can be calculated as
-\(\lfloor (d-1)/2 \rfloor \). 
-
-The \(d_{free}\) plays a similar role as minimum distance of a block code, but with a small modification. Since a convolutional code doesn't use blocks, processing instead a continuous bitstream, the value of \(t\) applies to a quantity of errors located relatively near to each other. That is, multiple groups of \(t\) errors can usually be fixed when they are relatively far apart. Free distance can be interpreted as the minimal length of an erroneous "burst" at the output of a convolutional decoder. The fact that errors appear as "bursts" should be accounted for when designing a concatenated code with an inner convolutional code. The popular solution for this problem is to interleave data before convolutional encoding, so that the outer block (usually Reed–Solomon) code can correct most of the errors.
-
-With linear block codes, minimum distance \(d\) told us that we could correct all patterns
-of up to \(\lfloor (d-1)/2 \rfloor\)  errors in a block.  In convolutional codes, \(d_{free}\) tells us something similar: we can correct \(\lfloor (d_{free} -1)/2 \rfloor \) bursty errors.
-
-
-\section{Recursive Systematic Convolutional Code}
-So far the convolutional code we have introduced has a forward only path. This corresponds to Finite Response Filter. It is possible, and has great advantage to include backward path in generating the parity bits. That corresponds to Infinite Response Filter. In fact, in modern coding schemes like Turbo codes, only recursive systematic convolutional codes are used. 
-
-
-The recursive systematic convolutional (RSC) encoder is obtained from the nonrecursive nonsystematic (conventional) convolutional encoder by feeding back one of its encoded outputs to its input. Figure~\ref{fig:Conv_Register} shows a conventional convolutional encoder.
-
-The RSC encoder of this conventional convolutional encoder is represented 
-as \(G=[1, g / g ]\) where the first output (represented by g ) is fed back to the input.  Figure \ref{fig:Conv_RSC} shows the resulting 
-RSC encoder.
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.6\textwidth]{Figs/Conv_RSC.png}
-    \caption{Caption}
-    \label{fig:Conv_RSC}
-\end{figure}
-
-The following is an extremely simple recursive systematic convolutional code. 
+The free distance plays the role that the minimum distance \(d\) plays for block codes.
 
 \begin{example}
-    \textbf{Accumulator.} Figure~\ref{fig:accumulator} shows a rate \(1/2\) recursive systematic convolutional code. Assuming the input bits are \(x_1, x_2, x_3, \cdots, \), and output parity bits are \(y_1, y_2, y_3, \cdots\), then we have 
-    \begin{align*}
-        y_1 &= x_1 \\
-        y_2 &= x_1 + x_2 \\
-        y_3 &= x_1 + x_2 + x_3 \\
-        \vdots \\
-        y_n & = \sum_{i=1}^{n} x_i
-    \end{align*}
-    Such a convolutional code is called as an accumulator. In modulation, it is also commonly used as a pre-coder. The transfer function is \(\frac{1}{1+D}.\)
-    
-\begin{figure}[h]
+For our \((7,5)\) code, consider the input \(1, 0, 0\). The encoder follows the path
+\[00 \xrightarrow{\ 11\ } 10 \xrightarrow{\ 10\ } 01 \xrightarrow{\ 11\ } 00,\]
+which has output weight \(2 + 1 + 2 = 5\). No other path does better. Leaving state \(00\) costs \(2\) (the only branch out of \(00\) other than the self-loop is labeled \(11\)), and returning to \(00\) costs \(2\) (the only branch into \(00\) from another state, from \(01\), is labeled \(11\)). In between, the path must get from \(10\) to \(01\), which costs at least \(1\): the direct branch is labeled \(10\), and any detour through state \(11\) costs at least \(1\) on the branch \(10 \to 11\) and \(1\) on the branch \(11 \to 01\). So
+\[d_{free} = 5.\]
+\end{example}
+
+Larger constraint lengths give larger free distances. For the best rate-\(1/2\) codes:
+\begin{center}
+\begin{tabular}{cccc}
+\hline
+\(K\) & generators (octal) & states & \(d_{free}\) \\
+\hline
+3 & (7, 5) & 4 & 5 \\
+5 & (23, 35) & 16 & 7 \\
+7 & (171, 133) & 64 & 10 \\
+\hline
+\end{tabular}
+\end{center}
+
+\paragraph{What the free distance tells us.} For a block code with minimum distance \(d\), every error pattern of weight at most \(\lfloor (d-1)/2 \rfloor\) in a block is corrected. For a convolutional code, the same statement holds \emph{locally}: a maximum likelihood decoder corrects any \(\lfloor (d_{free}-1)/2 \rfloor\) errors that fall within a short stretch of the received sequence (roughly a few constraint lengths long). For our example code, this means any \(2\) errors close together. Because the code is not divided into blocks, errors far apart are handled separately, so a long received sequence can contain many more errors than this, as long as they are spread out.
+
+\paragraph{Error bursts and concatenation.} When the decoder does make a mistake, it follows a wrong path through the trellis for a while before returning to the correct one. The resulting decoded bit errors therefore come in \emph{bursts}. This must be taken into account when the convolutional code is used as the inner code of a concatenated scheme, as on Voyager and Cassini. The standard solution is to place an interleaver between the outer Reed--Solomon encoder and the inner convolutional encoder (see the diagram in the Introduction). At the receiver, the de-interleaver spreads each burst of decoder errors across many Reed--Solomon codewords, so that each Reed--Solomon codeword sees only a few errors, which it can correct.
+
+\paragraph{Catastrophic codes.} Not every choice of generators is a good one. If all the generators share a common factor, e.g. \(g_0(D) = 1 + D\) and \(g_1(D) = 1 + D^2 = (1+D)^2\), then the infinite-weight input \(1 + D + D^2 + \cdots = 1/(1+D)\) produces a codeword of \emph{finite} weight. (Here \(\frac{1}{1+D}\) times \(1+D\) and \((1+D)^2\) gives the outputs \(1\) and \(1 + D\), of total weight \(3\).) So the all-ones message and the all-zeros message produce codewords that differ in only \(3\) positions. If the channel flips those \(3\) bits, the decoder will output the all-ones message: a finite number of channel errors causes an infinite number of decoded bit errors. Such an encoder is called \emph{catastrophic}. An encoder is non-catastrophic if and only if the greatest common divisor of its generators is a power of \(D\). For our example, \(\gcd(1 + D + D^2,\ 1 + D^2) = 1\), so the code is non-catastrophic.
+
+\section{Recursive Systematic Convolutional Codes}\label{sec:rsc}
+So far, our encoders compute the parity bits from the current and past message bits only, with no feedback. In filter terms, each parity stream is a \emph{finite impulse response} (FIR) filter: a single \(1\) at the input affects only \(K\) output bits. It is also possible, and very useful, to include a feedback path, which turns the encoder into an \emph{infinite impulse response} (IIR) filter. Encoders with feedback are called \emph{recursive}. Recursive systematic convolutional (RSC) codes are the building blocks of turbo codes, which we will study later.
+
+\subsection{From a Conventional Encoder to an RSC Encoder}
+Start from a conventional (non-recursive, non-systematic) encoder with generator matrix \(G(D) = [g_0(D),\ g_1(D)]\). Dividing both of its generators by \(g_0(D)\) gives
+\[G_{RSC}(D) = \left[\,1,\ \frac{g_1(D)}{g_0(D)}\,\right].\]
+The first output is now the message itself, so the code is \emph{systematic}. The second output is a parity stream with a rational transfer function, which is implemented by feeding the register contents selected by \(g_0(D)\) back to the input. (This requires \(g_0(D)\) to have constant term \(1\), so that \(1/g_0(D)\) is a well-defined power series in \(D\); this is always true for a sensible encoder.)
+
+For our example, \(G_{RSC}(D) = \left[1,\ \frac{1+D^2}{1+D+D^2}\right]\), whose encoder is shown in Figure~\ref{fig:ConvCode_RSC}. In this figure, \(p_1[n] = x[n]\) is the systematic output and \(p_0[n]\) is the recursive parity output.
+
+\begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.6\textwidth]{Figs/Accumulator.png}
-    \caption{An accumulator}
+    \includegraphics[width=0.5\textwidth]{Figs/Conv_RSC.png}
+    \caption{Recursive systematic convolutional (RSC) encoder obtained from the \((7,5)\) code: the feedback polynomial is \(1+D+D^2\) and the feedforward polynomial is \(1 + D^2\).}
+    \label{fig:ConvCode_RSC}
+\end{figure}
+
+\subsection{Transfer Function of the RSC Encoder}
+Let \(s[n]\) denote the value at the output of the first adder, just before the first register. Reading the equations off Figure~\ref{fig:ConvCode_RSC}, we have
+\begin{align*}
+s[n] &= x[n] + s[n-1] + s[n-2], \\
+p_0[n] &= s[n] + s[n-2].
+\end{align*}
+Applying the \(D\)-transform to both equations, we have
+\begin{align*}
+S(D)\,(1+D + D^2) &= X(D), \\
+P_0(D) &= S(D)\,(1 + D^2).
+\end{align*}
+Eliminating \(S(D)\) gives the transfer function
+\begin{align}
+\frac{P_0(D)}{X(D)} = \frac{1+D^2}{1+ D + D^2}. \label{eq:ConvRSCTransfer}
+\end{align}
+Compared with a non-recursive encoder, whose transfer functions are polynomials, the transfer function of a recursive encoder has a non-constant denominator, which corresponds to the feedback loop.
+
+\subsection{Why Recursive Codes?}
+The RSC encoder and the original encoder generate \emph{the same set of codewords}. Every codeword of the original code has the form \(X(D)\,[g_0(D), g_1(D)]\), and choosing the input \(X'(D) = X(D)\, g_0(D)\) for the RSC encoder produces exactly the same codeword. So the RSC code has the same free distance, \(d_{free} = 5\) in our example, and the same error-correcting power. What changes is the \emph{mapping} from messages to codewords, and this matters in two ways.
+\begin{itemize}
+    \item \emph{Systematic output.} The message bits appear directly in the codeword. This is convenient, and in iterative decoding the decoder can refine its estimates of the message bits directly.
+    \item \emph{Infinite impulse response.} A single \(1\) at the input of a conventional encoder produces only \(K\) nonzero blocks at the output. A single \(1\) at the input of the RSC encoder keeps circulating in the feedback loop forever: for our example, the parity output is \(1, 1, 1, 0, 1, 1, 0, 1, 1, 0, \ldots\), which never dies out. Only inputs that are divisible by the feedback polynomial \(1 + D + D^2\) produce finite-weight outputs. No weight-1 input is divisible, and a weight-2 input \(D^a(1 + D^b)\) is divisible only when \(b\) is a multiple of \(3\), because \(1 + D^3 = (1 + D)(1 + D + D^2)\). For example, the input \(1 + D^3\) produces the parity output \((1+D)(1+D^2) = 1 + D + D^2 + D^3\), while the input \(1 + D\) produces a parity stream that never ends. As a result, low-weight inputs almost always produce high-weight codewords. This property is crucial for turbo codes, as we will see when we study them.
+\end{itemize}
+
+\begin{example}
+    \textbf{Accumulator.} The simplest recursive systematic convolutional code is shown in Figure~\ref{fig:accumulator}. It has rate \(1/2\): one output is the input itself, and the other is the running sum of the input bits. With input bits \(x_1, x_2, x_3, \ldots\) and parity bits \(y_1, y_2, y_3, \ldots\), we have
+    \begin{align*}
+        y_1 &= x_1, \\
+        y_2 &= x_1 + x_2, \\
+        y_3 &= x_1 + x_2 + x_3, \\
+        &\ \ \vdots \\
+        y_n & = \sum_{i=1}^{n} x_i = y_{n-1} + x_n.
+    \end{align*}
+    This code is called an \emph{accumulator}. Its transfer function is \(\frac{1}{1+D}\). In digital modulation, the accumulator is also commonly used as a \emph{differential pre-coder}. Despite its simplicity, it is the key component of repeat--accumulate codes, a family of turbo-like codes that we will meet later in the course.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.45\textwidth]{Figs/Accumulator.png}
+    \caption{An accumulator: the upper output is the input itself, and the lower output is the running sum \(y_n = y_{n-1} + x_n\).}
     \label{fig:accumulator}
 \end{figure}
 
 \end{example}
 
+\section{Exercises}
+\begin{enumerate}
+    \item Encode the message \(1101\) (rightmost bit first) with the \((7,5)\) code, including the two tail bits. Trace the path through the trellis.
+    \item Find the output of the \((7,5)\) encoder for the input \(x = 1, 1\) followed by zeros. What is its weight, and why does it not contradict \(d_{free} = 5\)?
+    \item The \(K = 5\) code in the table of Section~\ref{sec:dfree} has generators \((23, 35)\) in octal. Write down its generator polynomials.
+    \item What is the actual rate of a terminated rate-\(1/2\), \(K = 7\) code for a message of \(L = 100\) bits?
+    \item Show that the encoder with \(g_0(D) = 1 + D\) and \(g_1(D) = 1 + D^2\) is catastrophic, by finding an infinite-weight input that produces a finite-weight output.
+    \item For the RSC encoder of Figure~\ref{fig:ConvCode_RSC}, find the parity output for the inputs \(1 + D^3\) and \(1 + D^2\). Which one has finite weight?
+\end{enumerate}
 
-\subsection{Transfer Function of RSC}
-The transfer function of the code defined in Fig~\ref{fig:Conv_RSC}.
-We will introduce the variable \(s[n]\) to represent the value right before first register. Then we have the following equations: 
-\begin{align*}
-s[n] &= x[n] + s[n-1] + s[n-2] \nonumber\\
-p[n] &= s[n] + s[n-2]
-\end{align*}
-Applying the \(z\)-transform to the two equations, we have 
-\begin{align*}
-S(1+D + D^2) &= X, \\
-P &= S(1 + D^2).
-\end{align*}
-Canceling \(S\) in the above two equations gives us the transfer function: 
+\paragraph{Answers.}
+(1) The path is \(00 \to 10 \to 01 \to 10 \to 11 \to 01 \to 00\), and the codeword is \(11\ 10\ 00\ 01\ 01\ 11\).
+(2) The output is \(11\ 01\ 01\ 11\), of weight \(6 \geq 5\).
+(3) \(23 = 010\,011\) gives \(10011\), i.e. \(g_0(D) = 1 + D^3 + D^4\); \(35 = 011\,101\) gives \(11101\), i.e. \(g_1(D) = 1 + D + D^2 + D^4\).
+(4) \(R = 100/(2 \cdot 106) \approx 0.472\).
+(5) See the paragraph on catastrophic codes: the input \(1/(1+D) = 1 + D + D^2 + \cdots\) gives outputs \(1\) and \(1 + D\).
+(6) The input \(1 + D^3\) gives \(1 + D + D^2 + D^3\) (finite); the input \(1 + D^2\) gives \(1\,1\,0\,1\,0\,1\,1\,0\,1\,1\,0 \cdots\), which never ends.
 
-\begin{align}
-\frac{P}{X} = \frac{1+D^2}{1+ D + D^2} \label{eq:RSCTransfer}
-\end{align}
-
-Compared with a non-recursive convolutional code, the transfer function of a recursive convolutional code has a non constant denomintor function. This provides the feedback loop.
-
-
-
+\section{Summary}
+\begin{itemize}
+    \item A convolutional code computes parity bits over a sliding window of \(K\) message bits, the constraint length. A rate-\(1/r\) code produces \(r\) parity bits per message bit.
+    \item The encoder can be viewed as a shift register, as a set of generator polynomials \(g_i(D)\) acting by convolution (polynomial multiplication), as a finite-state machine with \(2^{K-1}\) states, or as a path through a trellis.
+    \item Convolutional codes are linear. The free distance \(d_{free}\), the minimum weight of a path that leaves and returns to the zero state, plays the role of the minimum distance. Our \((7,5)\) example has \(d_{free} = 5\).
+    \item Decoding errors come in bursts, so convolutional codes are often concatenated with an outer Reed--Solomon code through an interleaver.
+    \item Recursive systematic encoders generate the same code with a systematic, infinite-impulse-response mapping, which is the key ingredient of turbo codes.
+    \item In the next lecture, we use the trellis to decode convolutional codes optimally with the Viterbi algorithm.
+\end{itemize}
